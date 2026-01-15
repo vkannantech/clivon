@@ -1,5 +1,6 @@
 
 import { useState } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import { BrowserFrame } from './components/BrowserFrame';
 import { Home, Video, Settings, Play, Plus, X } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -46,11 +47,23 @@ function App() {
     }
   };
 
+  const toggleMiniPlayer = async () => {
+    const activeTab = tabs.find(t => t.id === activeTabId);
+    if (activeTab) {
+      try {
+        await invoke('open_mini_player', { url: activeTab.url });
+      } catch (error) {
+        console.error("Failed to open Mini Player:", error);
+        alert("Mini Player Error: " + error);
+      }
+    }
+  };
+
   // Keyboard Shortcuts Integration
   useShortcuts([
     { key: 't', ctrl: true, action: addTab },
     { key: 'w', ctrl: true, action: () => closeTab(activeTabId) },
-    { key: 'm', ctrl: true, action: () => alert("Toggle Mini Player") },
+    { key: 'm', ctrl: true, action: toggleMiniPlayer },
     { key: 'b', ctrl: true, action: () => setZenMode(prev => !prev) }, // B for Sidebar/Bars
   ]);
 
@@ -146,7 +159,7 @@ function App() {
         <FloatingDock
           onHome={() => setActiveView('home')}
           onTabs={() => addTab()}
-          onMini={() => alert("Mini Player (Coming Soon)")}
+          onMini={toggleMiniPlayer}
           onFullscreen={() => setZenMode(prev => !prev)}
         />
 
