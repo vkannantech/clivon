@@ -19,7 +19,6 @@ type Tab = {
 };
 
 function App() {
-  const [activeView, setActiveView] = useState<'home' | 'settings'>('home');
   const [tabs, setTabs] = useState<Tab[]>([
     { id: '1', title: 'Home', url: 'https://www.youtube.com' }
   ]);
@@ -143,7 +142,7 @@ function App() {
 
         {/* Floating Dock - Only visible when needed via Hover */}
         <FloatingDock
-          onHome={() => setActiveView('home')}
+          onHome={() => setActiveTabId(tabs[0]?.id || '')}
           onTabs={() => addTab()}
           onMini={toggleMiniPlayer}
           onFullscreen={() => setZenMode(prev => !prev)}
