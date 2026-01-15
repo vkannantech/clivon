@@ -1,37 +1,78 @@
-(function () {
-    console.log("[Clivon Core] v3.0 | Ultra Robust Mode");
 
-    // --- GLOBAL CSS ---
-    const STYLE_ID = 'clivon-style-overrides';
-    if (!document.getElementById(STYLE_ID)) {
-        const style = document.createElement('style');
-        style.id = STYLE_ID;
-        style.textContent = `
-            /* GPU Acceleration */
-            video.html5-main-video { transform: translateZ(0); will-change: transform; }
-            ytd-app { scroll-behavior: smooth; }
-            
-            /* PiP Button Style */
-            .clivon-pip-btn {
-                background: none; border: none; cursor: pointer;
-                vertical-align: middle; width: 48px; height: 100%;
-                opacity: 0.9; transition: opacity 0.1s;
-            }
-            .clivon-pip-btn:hover { opacity: 1; }
-            .clivon-pip-btn svg { fill: white; width: 100%; height: 100%; transform: scale(0.8); }
-        `;
-        document.head.appendChild(style);
+(function () {
+    console.log("[Clivon Core] v4.0 | Nuclear Robustness + Themes");
+
+    // --- 0. THEME ENGINE ---
+    const THEMES = ['default', 'amoled', 'light'];
+    let currentThemeIdx = 0;
+
+    const THEME_CSS = `
+        /* Base Clivon Styles */
+        video.html5-main-video { transform: translateZ(0); will-change: transform; }
+        ytd-app { scroll-behavior: smooth; }
+        
+        /* Floating Dock (Fallback) */
+        #clivon-floating-dock {
+            position: fixed; top: 10px; left: 100px; z-index: 9999;
+            display: flex; gap: 8px; background: rgba(0,0,0,0.6);
+            padding: 5px 10px; border-radius: 20px;
+            backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1);
+            transition: opacity 0.3s;
+        }
+        #clivon-floating-dock:hover { opacity: 1; }
+        
+        /* AMOLED Theme */
+        html[clivon-theme="amoled"] {
+            --yt-spec-base-background: #000000 !important;
+            --yt-spec-raised-background: #000000 !important;
+            --yt-spec-menu-background: #0f0f0f !important;
+            --yt-spec-inverted-background: #000000 !important;
+            --yt-spec-additive-background: rgba(255,255,255,0.1) !important;
+        }
+        
+        /* Light Theme Force */
+        html[clivon-theme="light"] {
+            --yt-spec-base-background: #ffffff !important;
+            --yt-spec-text-primary: #0f0f0f !important;
+            --yt-spec-text-secondary: #606060 !important;
+            filter: invert(0) !important; /* Safety */
+        }
+    `;
+
+    const style = document.createElement('style');
+    style.id = 'clivon-theme-css';
+    style.textContent = THEME_CSS;
+    document.head.appendChild(style);
+
+    function toggleTheme() {
+        currentThemeIdx = (currentThemeIdx + 1) % THEMES.length;
+        const theme = THEMES[currentThemeIdx];
+        document.documentElement.setAttribute('clivon-theme', theme);
+        console.log("[Clivon] Theme set to:", theme);
     }
 
-    // --- STATE & UTILS ---
-    const STATE = {
-        pipActive: false,
-        lastNotifCount: 0,
-        videoElement: null
-    };
+    // --- 1. GLOBAL SHORTCUTS (Strict) ---
+    document.addEventListener('keydown', (e) => {
+        // F = YouTube Native Video Fullscreen (Pass through)
+        if (e.key.toLowerCase() === 'f') return;
+
+        // F11 = App Fullscreen (Strict Capture)
+        if (e.key === 'F11') {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleAppFullscreen();
+        }
+    }, true); // Capture phase to beat YouTube
+
+    function toggleAppFullscreen() {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(() => { });
+        } else {
+            document.exitFullscreen();
+        }
+    }
 
     function invokeRust(cmd, args = {}) {
-        // Tauri v2 namespace
         if (window.__TAURI__?.core) {
             window.__TAURI__.core.invoke(cmd, args).catch(err => console.error("Rust Error:", err));
         } else if (window.__TAURI__?.invoke) {
@@ -39,168 +80,119 @@
         }
     }
 
-    // --- 1. HEADER MODULE (Home & Fullscreen) ---
-    function injectHeaderButtons() {
-        const BTN_ID = 'clivon-header-buttons';
-        if (document.getElementById(BTN_ID)) return;
 
-        // More robust selector strategy
-        const container = document.querySelector('ytd-masthead #start') ||
-            document.querySelector('#masthead #start');
+    // --- 2. UI INJECTION ENGINE (Nuclear) ---
+    function injectUI() {
+        injectHeaderControls();
+        injectPiPButton();
+    }
 
-        if (container) {
-            const wrapper = document.createElement('div');
-            wrapper.id = BTN_ID;
-            wrapper.style.cssText = 'display:flex; align-items:center; margin-left:15px; margin-right:5px; gap:4px;';
+    function injectHeaderControls() {
+        const ID = 'clivon-header-controls';
+        if (document.getElementById(ID)) return;
 
-            // Home
-            const homeBtn = createIconBtn(
-                '<path d="M4,10V21h6V15h4v6h6V10L12,3Z"></path>',
-                "Home",
-                () => window.location.href = "https://www.youtube.com"
-            );
+        // Strategy A: Native Header
+        // We look for multiple logical insertion points
+        const anchor = document.querySelector('ytd-masthead #end') ||
+            document.querySelector('ytd-masthead #buttons') ||
+            document.querySelector('#masthead #end'); // Try right side logic for stability
 
-            // App Fullscreen
-            const fsBtn = createIconBtn(
-                '<path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"></path>',
-                "Maximize App",
-                () => {
-                    if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => { });
-                    else document.exitFullscreen();
-                }
-            );
+        if (anchor) {
+            const wrapper = createControlGroup(ID);
+            // Insert at the beginning of the "end" section (left of profile/notifs)
+            anchor.insertBefore(wrapper, anchor.firstChild);
+            console.log("[Clivon] Injected into Header (Right)");
+            return;
+        }
 
-            wrapper.append(homeBtn, fsBtn);
-            container.appendChild(wrapper);
-            console.log("[Clivon] Header Buttons Injected");
+        // Strategy B: Left Header
+        const leftAnchor = document.querySelector('ytd-masthead #start');
+        if (leftAnchor) {
+            const wrapper = createControlGroup(ID);
+            leftAnchor.appendChild(wrapper);
+            console.log("[Clivon] Injected into Header (Left)");
+            return;
+        }
+
+        // Strategy C: Floating Dock (Fallback)
+        // If we really can't find the header, create a floating dock
+        if (!document.getElementById('clivon-floating-dock')) {
+            const dock = createControlGroup('clivon-floating-dock');
+            document.body.appendChild(dock);
+            console.log("[Clivon] Header missing, deployed Floating Dock");
         }
     }
 
-    function createIconBtn(path, userTitle, action) {
+    function createControlGroup(id) {
+        const div = document.createElement('div');
+        div.id = id;
+        div.style.cssText = 'display:flex; align-items:center; margin: 0 10px; gap: 8px;';
+
+        // 1. Home
+        div.appendChild(createBtn(
+            '<path d="M4,10V21h6V15h4v6h6V10L12,3Z"></path>',
+            "Home",
+            () => window.location.href = "https://www.youtube.com"
+        ));
+
+        // 2. Fullscreen (App)
+        div.appendChild(createBtn(
+            '<path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"></path>',
+            "App Fullscreen (F11)",
+            toggleAppFullscreen
+        ));
+
+        // 3. Theme Switcher
+        div.appendChild(createBtn(
+            '<path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-2.98 0-5.4-2.42-5.4-5.4 0-1.81.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z"></path>',
+            "Switch Theme",
+            toggleTheme
+        ));
+
+        return div;
+    }
+
+    function createBtn(path, title, action) {
         const btn = document.createElement('button');
-        btn.title = userTitle;
-        btn.style.cssText = 'background:none; border:none; cursor:pointer; width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; padding:0;';
-        btn.innerHTML = `<svg viewBox="0 0 24 24" style="width:24px; height:24px; fill:var(--yt-spec-text-primary);"><g>${path}</g></svg>`;
+        btn.title = title;
+        btn.style.cssText = 'background:transparent; border:none; cursor:pointer; padding:6px; border-radius:50%; width:32px; height:32px; display:flex; align-items:center; justify-content:center;';
+        btn.innerHTML = `<svg viewBox="0 0 24 24" style="width:24px; height:24px; fill:var(--yt-spec-text-primary, white); filter: drop-shadow(0 0 2px rgba(0,0,0,0.5));"><g>${path}</g></svg>`;
         btn.onclick = action;
-        btn.onmouseenter = () => btn.style.backgroundColor = 'var(--yt-spec-badge-chip-background-color, rgba(255,255,255,0.1))';
-        btn.onmouseleave = () => btn.style.backgroundColor = 'transparent';
+        btn.onmouseenter = () => btn.style.background = 'rgba(255,255,255,0.15)';
+        btn.onmouseleave = () => btn.style.background = 'transparent';
         return btn;
     }
 
-    // --- 2. PIP MODULE (Native Player Integration) ---
     function injectPiPButton() {
         if (document.getElementById('clivon-pip-button')) return;
-
         const rightControls = document.querySelector('.ytp-right-controls');
         if (rightControls) {
             const btn = document.createElement('button');
             btn.id = 'clivon-pip-button';
             btn.className = 'clivon-pip-btn ytp-button';
-            btn.title = "Mini Mode (PiP)";
-            btn.innerHTML = `
-                <svg viewBox="0 0 24 24">
-                    <path d="M19 11h-8v6h8v-6zm4 8V4.98C23 3.88 22.1 3 21 3H3c-1.1 0-2 .88-2 1.98V19c0 1.1.9 2 2 2h20c1.1 0 2-.9 2-2zm-2 .02H3V4.97h18v14.05z"></path>
-                </svg>
-            `;
+            btn.title = "Mini Mode";
+            btn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M19 11h-8v6h8v-6zm4 8V4.98C23 3.88 22.1 3 21 3H3c-1.1 0-2 .88-2 1.98V19c0 1.1.9 2 2 2h20c1.1 0 2-.9 2-2zm-2 .02H3V4.97h18v14.05z"></path></svg>`;
             btn.onclick = () => {
-                STATE.pipActive = !STATE.pipActive;
-                invokeRust("toggle_mini_mode", { enable: STATE.pipActive });
-                // Also toggle native pip if possible as fallback
-                const video = document.querySelector('video');
-                if (video && document.pictureInPictureEnabled && !STATE.pipActive) {
-                    // Try to sync with native Rust window by putting video in simple mode
-                }
+                const enable = !document.pictureInPictureElement;
+                invokeRust("toggle_mini_mode", { enable: enable });
             };
-
-            // Insert before the settings gear or fullscreen button
             rightControls.insertBefore(btn, rightControls.firstChild);
-            console.log("[Clivon] PiP Button Injected");
         }
     }
 
-    // --- 3. MEDIA & NOTIFICATIONS (Strict Sync) ---
-    function setupStrictMediaSync() {
-        const video = document.querySelector('video');
-        if (!video || video === STATE.videoElement) return;
 
-        console.log("[Clivon] Hooking Video Events");
-        STATE.videoElement = video;
-
-        // Immediate Sync
-        updateMediaSession();
-
-        // Event Driven Sync
-        ['play', 'pause', 'ratechange', 'timeupdate', 'loadeddata'].forEach(evt => {
-            video.addEventListener(evt, updateMediaSession);
-        });
-    }
-
-    function updateMediaSession() {
-        if (!navigator.mediaSession) return;
-
-        // Scrape Metadata robustly
-        const titleEl = document.querySelector('h1.ytd-video-primary-info-renderer') ||
-            document.querySelector('#title h1 yt-formatted-string') ||
-            { innerText: document.title }; // Fallback
-
-        const authorEl = document.querySelector('ytd-channel-name a') ||
-            document.querySelector('.ytd-channel-name a');
-
-        const title = titleEl.innerText || "YouTube Desktop";
-        const artist = authorEl ? authorEl.innerText : "Clivon";
-
-        // Cache check
-        if (navigator.mediaSession.metadata?.title === title && navigator.mediaSession.metadata?.artist === artist) return;
-
-        const videoId = new URLSearchParams(window.location.search).get('v');
-        const artwork = videoId
-            ? [{ src: `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`, sizes: '1280x720', type: 'image/jpeg' }]
-            : [];
-
-        navigator.mediaSession.metadata = new MediaMetadata({ title, artist, artwork });
-
-        // Notification Pulse
-        checkNotifications();
-    }
-
-    function checkNotifications() {
-        const badge = document.querySelector('.yt-spec-icon-badge-shape__badge');
-        if (badge) {
-            const count = parseInt(badge.innerText.trim()) || 0;
-            if (count > STATE.lastNotifCount) {
-                if (window.__TAURI__?.notification) {
-                    window.__TAURI__.notification.sendNotification({ title: 'New Activity', body: `You have ${count} new notifications` });
-                }
-                STATE.lastNotifCount = count;
-            }
-        }
-    }
-
-    // --- 4. ORCHESTRATOR (Observer + Interval) ---
-
-    // Observer for "page navigation" or "app load"
-    const observer = new MutationObserver(() => {
-        injectHeaderButtons();
-        injectPiPButton();
-        setupStrictMediaSync();
-    });
-
-    // Start with a broad observation
-    setTimeout(() => {
-        const app = document.querySelector('ytd-app') || document.body;
-        observer.observe(app, { childList: true, subtree: true });
-
-        // Initial force run
-        injectHeaderButtons();
-        injectPiPButton();
-        setupStrictMediaSync();
-    }, 1500);
-
-    // Fallback Interval for robustness
+    // --- 3. ORCHESTRATOR ---
+    // Aggressive polling is sometimes more reliable than Observer for chaotic SPAs
     setInterval(() => {
-        if (!document.getElementById('clivon-header-buttons')) injectHeaderButtons();
-        if (!document.getElementById('clivon-pip-button')) injectPiPButton();
-        setupStrictMediaSync(); // Checks internally if new video element appeared
-    }, 2000);
+        injectUI();
+        // Keep Media Session alive
+        const video = document.querySelector('video');
+        if (video && !video.hasAttribute('clivon-hooked')) {
+            video.setAttribute('clivon-hooked', 'true');
+            ['play', 'pause', 'ratechange'].forEach(e => video.addEventListener(e, () => {
+                // Update Rust/System info if needed
+            }));
+        }
+    }, 1000);
 
 })();
