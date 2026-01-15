@@ -37,9 +37,9 @@ export const BrowserFrame: FC<BrowserFrameProps> = ({ url }) => {
                         ref={iframeRef}
                         src={url}
                         className="w-full h-full border-0"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; presentation"
                         allowFullScreen
-                        sandbox="allow-scripts allow-same-origin allow-presentation allow-forms"
+                        sandbox="allow-scripts allow-same-origin allow-presentation allow-forms allow-popups allow-modals"
                         onError={() => setError(true)}
                     // Use standard user agent if possible (Tauri handles this better than browser)
                     />

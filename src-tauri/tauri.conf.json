@@ -14,7 +14,10 @@
       {
         "title": "Clivon",
         "width": 1280,
-        "height": 720
+        "height": 720,
+        "visible": true,
+        "decorations": false,
+        "transparent": true
       }
     ],
     "security": {
