@@ -1,8 +1,8 @@
 [package]
-name = "tauri-appclivon"
-version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
+name = "youtube-desktop-clivon"
+version = "1.0.0"
+description = "High-Performance YouTube Desktop Client by Clivon"
+authors = ["Clivon <contact@clivon.com>"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
