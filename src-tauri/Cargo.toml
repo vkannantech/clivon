@@ -1,6 +1,6 @@
 [package]
 name = "youtube-desktop-clivon"
-version = "1.0.0"
+version = "1.0.1"
 description = "High-Performance YouTube Desktop Client by Clivon"
 authors = ["Clivon <contact@clivon.com>"]
 edition = "2021"
