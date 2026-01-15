@@ -154,6 +154,10 @@ pub fn run() {
             let notify_js = include_str!("notifications.js");
             let _ = main_window.eval(notify_js);
 
+            // 5. Header Mods (Home & Fullscreen Buttons)
+            let header_js = include_str!("header_mods.js");
+            let _ = main_window.eval(header_js);
+
             Ok(())
         })
         .register_uri_scheme_protocol("stream", |_app, request| {
