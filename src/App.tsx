@@ -1,8 +1,7 @@
-
 import { useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { BrowserFrame } from './components/BrowserFrame';
-import { Home, Video, Settings, Play, Plus, X } from 'lucide-react';
+import { Play, Plus, X } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { FloatingDock } from './components/FloatingDock';
@@ -48,6 +47,15 @@ function App() {
   };
 
   const toggleMiniPlayer = async () => {
+    // 1. Environment Check
+    // @ts-ignore
+    const isTauri = typeof window !== 'undefined' && (window.__TAURI_INTERNALS__ || window.__TAURI__);
+
+    if (!isTauri) {
+      alert("Mini Player requires the Desktop App.\nPlease run: npm run tauri dev");
+      return;
+    }
+
     const activeTab = tabs.find(t => t.id === activeTabId);
     if (activeTab) {
       try {
@@ -69,28 +77,6 @@ function App() {
 
   return (
     <div className="flex h-screen w-screen bg-black text-white overflow-hidden font-sans selection:bg-red-500/30">
-
-      {/* Sidebar - Productivity Dock */}
-      <aside className={cn(
-        "flex flex-col items-center py-6 border-r border-white/5 bg-zinc-950/50 backdrop-blur-xl z-50 transition-all duration-300",
-        zenMode ? "hidden" : "w-16 opacity-100"
-      )}>
-        <div className="mb-8">
-          <div className="w-10 h-10 bg-gradient-to-br from-red-600 to-red-900 rounded-xl flex items-center justify-center shadow-lg shadow-red-900/20">
-            <Play className="w-5 h-5 text-white fill-white" />
-          </div>
-        </div>
-
-        <nav className="flex-1 flex flex-col gap-4 w-full px-2">
-          <NavItem icon={Home} label="Home" active={activeView === 'home'} onClick={() => setActiveView('home')} />
-          {/* We might reuse 'Layers' for managing multiple windows later */}
-          <NavItem icon={Video} label="Mini" active={false} onClick={() => alert("Mini Player requires Desktop Mode")} />
-        </nav>
-
-        <div className="mt-auto px-2">
-          <NavItem icon={Settings} label="Settings" active={activeView === 'settings'} onClick={() => setActiveView('settings')} />
-        </div>
-      </aside>
 
       {/* Main Workspace */}
       <main className="flex-1 flex flex-col min-w-0 bg-black relative">
@@ -115,6 +101,9 @@ function App() {
                     : "bg-transparent text-zinc-500 hover:bg-white/5 hover:text-zinc-300"
                 )}
               >
+                <div className="mr-2">
+                  <Play className="w-3 h-3 text-red-600 fill-red-600" />
+                </div>
                 <span className="truncate flex-1 mr-2">
                   {tab.title === 'Home' ? 'YouTube' : tab.title}
                 </span>
@@ -139,10 +128,7 @@ function App() {
           </div>
 
           <div className="flex items-center space-x-4 pl-4 border-l border-white/5">
-            <div className="flex items-center px-2 py-1 bg-zinc-900 rounded-full border border-white/5">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse mr-2"></div>
-              <span className="text-[10px] text-zinc-400 font-medium tracking-wide">SECURE</span>
-            </div>
+            {/* Minimal App Controls if needed, currently empty/status */}
           </div>
         </header>
 
@@ -166,27 +152,6 @@ function App() {
       </main>
 
     </div>
-  );
-}
-
-// Subcomponent for Sidebar Items
-function NavItem({ icon: Icon, label, active, onClick }: any) {
-  return (
-    <button
-      onClick={onClick}
-      title={label}
-      className={cn(
-        "w-full aspect-square rounded-xl flex flex-col items-center justify-center gap-1 transition-all duration-200 group relative",
-        active
-          ? "bg-white/10 text-white shadow-inner"
-          : "text-zinc-500 hover:bg-white/5 hover:text-zinc-300"
-      )}
-    >
-      <Icon className={cn("w-5 h-5 transition-transform group-hover:scale-110", active && "text-red-500")} />
-      {active && (
-        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-red-500 rounded-r-full -ml-[10px]" />
-      )}
-    </button>
   );
 }
 
