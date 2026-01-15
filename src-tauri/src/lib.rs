@@ -80,7 +80,7 @@ async fn open_mini_player(app: tauri::AppHandle, url: String) -> Result<(), Stri
         })();
     "#;
 
-    let window = WebviewWindowBuilder::new(&app, "browser_view", WebviewUrl::External(url.parse().unwrap()))
+    let _window = WebviewWindowBuilder::new(&app, "browser_view", WebviewUrl::External(url.parse().unwrap()))
             .title("YouTube")
             .inner_size(1024.0, 640.0)
             .min_inner_size(480.0, 320.0)
