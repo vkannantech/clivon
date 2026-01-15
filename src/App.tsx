@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 
 // Premium Pulsing Loader Component
 function Loader() {
@@ -47,8 +47,6 @@ function Loader() {
 }
 
 function App() {
-  const [loading, setLoading] = useState(true);
-
   useEffect(() => {
     // 1. Minimum logo display time for branding (1.5s)
     // 2. Then redirect to YouTube
@@ -59,9 +57,7 @@ function App() {
     return () => clearTimeout(timer);
   }, []);
 
-  if (loading) {
-    return <Loader />;
-  }
+  return <Loader />;
 
   return (
     <div style={{ width: '100vw', height: '100vh', background: '#000' }}>
