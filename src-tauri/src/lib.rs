@@ -38,11 +38,28 @@ async fn open_mini_player(app: tauri::AppHandle, url: String) -> Result<(), Stri
     Ok(())
 }
 
+#[tauri::command]
+async fn fetch_url(url: String) -> Result<String, String> {
+    let client = reqwest::Client::builder()
+        .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let res = client.get(&url).send().await.map_err(|e| e.to_string())?;
+    let body = res.text().await.map_err(|e| e.to_string())?;
+
+    // Inject base tag for relative links
+    let base_tag = format!("<base href=\"{}\" />", url);
+    let body_with_base = body.replace("<head>", &format!("<head>{}", base_tag));
+
+    Ok(body_with_base)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet, open_mini_player])
+        .invoke_handler(tauri::generate_handler![greet, open_mini_player, fetch_url])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

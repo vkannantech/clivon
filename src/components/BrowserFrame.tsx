@@ -11,8 +11,25 @@ export const BrowserFrame: FC<BrowserFrameProps> = ({ url }) => {
     const [error, setError] = useState<boolean>(false);
 
     // Note: Standard iframes are blocked by X-Frame-Options for youtube.com
-    // This component will evolve to manage the "Overlay Window" or "Webview" 
-    // in the next steps if direct embedding fails (which it likely will).
+    // So we use a Rust Proxy to fetch the HTML and render it via srcDoc
+    const [htmlContent, setHtmlContent] = useState<string>("");
+
+    useEffect(() => {
+        let isMounted = true;
+        const loadContent = async () => {
+            try {
+                const { invoke } = await import('@tauri-apps/api/core');
+                const content = await invoke<string>('fetch_url', { url });
+                if (isMounted) setHtmlContent(content);
+            } catch (err) {
+                console.error("Proxy Load Error:", err);
+                // Fallback to direct URL if proxy fails (might show error but worth a try)
+                if (isMounted) setError(true);
+            }
+        };
+        loadContent();
+        return () => { isMounted = false; };
+    }, [url]);
 
     return (
         <div className="flex flex-col h-full w-full bg-black relative overflow-hidden">
@@ -35,7 +52,7 @@ export const BrowserFrame: FC<BrowserFrameProps> = ({ url }) => {
                 ) : (
                     <iframe
                         ref={iframeRef}
-                        src={url}
+                        srcDoc={htmlContent}
                         className="w-full h-full border-0"
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; presentation"
                         allowFullScreen
