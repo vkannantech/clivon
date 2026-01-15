@@ -1,5 +1,5 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-use tauri::Manager;
+use tauri::{Manager, Emitter};
 use std::sync::OnceLock;
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::TrayIconBuilder;
@@ -90,19 +90,19 @@ pub fn run() {
             let _tray = TrayIconBuilder::new()
                 .icon(app.default_window_icon().unwrap().clone())
                 .menu(&menu)
-                .on_menu_event(|app, event| {
+                .on_menu_event(|app: &tauri::AppHandle, event: tauri::menu::MenuEvent| {
                     match event.id().as_ref() {
                         "quit" => app.exit(0),
                         "mini" => {
                             if let Some(window) = app.get_webview_window("main") {
-                                let _ = window.emit("tray-toggle-mini", ());
+                                let _ = window.emit::<()>("tray-toggle-mini", ());
                                 let _ = window.set_focus();
                             }
                         },
                         "focus" => {
                             if let Some(window) = app.get_webview_window("main") {
                                 // We blindly send 'true' for now as a trigger, logic should handle toggle
-                                let _ = window.emit("toggle-focus-mode", true); 
+                                let _ = window.emit::<bool>("toggle-focus-mode", true); 
                             }
                         }
                         _ => {}
