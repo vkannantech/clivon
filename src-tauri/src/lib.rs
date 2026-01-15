@@ -145,14 +145,61 @@ async fn fetch_url(url: String) -> Result<String, String> {
     Ok(clean_body)
 }
 
+#[tauri::command]
+async fn toggle_mini_mode(app: tauri::AppHandle, enable: bool) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window("main") {
+        if enable {
+            // Mini Mode: Small, Always on Top, No Decorations (if possible via JS hiding)
+            window.set_always_on_top(true).unwrap();
+            window.set_size(tauri::Size::Logical(tauri::LogicalSize { width: 480.0, height: 270.0 })).unwrap();
+        } else {
+            // Normal Mode
+            window.set_always_on_top(false).unwrap();
+            window.set_size(tauri::Size::Logical(tauri::LogicalSize { width: 1280.0, height: 720.0 })).unwrap();
+        }
+    }
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet, open_mini_player, fetch_url])
+        .invoke_handler(tauri::generate_handler![greet, open_mini_player, fetch_url, toggle_mini_mode])
         .setup(|app| {
-            // AUTO-LAUNCH: Immediately open the YouTube window on startup
-            create_browser_window(app.handle())?;
+            let main_window = app.get_webview_window("main").unwrap();
+            
+            // LOCK SCREEN & MEDIA FIXER
+            let media_fixer = r#"
+                setInterval(() => {
+                    if (!navigator.mediaSession) return;
+                    const video = document.querySelector('video');
+                    if (!video) return;
+
+                    const titleEl = document.querySelector('h1.ytd-video-primary-info-renderer') || document.querySelector('.ytp-title-link');
+                    const authorEl = document.querySelector('ytd-channel-name a') || document.querySelector('.ytp-title-expanded-title');
+                    
+                    if (titleEl) {
+                         const title = titleEl.innerText;
+                         const artist = authorEl ? authorEl.innerText : 'YouTube';
+                         navigator.mediaSession.metadata = new MediaMetadata({
+                             title: title,
+                             artist: artist,
+                             album: 'YouTube Desktop',
+                             artwork: [
+                                 { src: 'https://img.youtube.com/vi/' + (new URLSearchParams(window.location.search).get('v')) + '/0.jpg', sizes: '512x512', type: 'image/jpeg' }
+                             ]
+                         });
+                    }
+                }, 2000);
+            "#;
+            let _ = main_window.eval(media_fixer);
+
+            // AD BLOCK INJECTION (Clivon Shield)
+            // We read the JS file at compile time to ensure it works in production binary
+            let adblock_js = include_str!("adblock.js");
+            let _ = main_window.eval(adblock_js);
+
             Ok(())
         })
         .register_uri_scheme_protocol("stream", |_app, request| {
@@ -164,14 +211,12 @@ pub fn run() {
             let uri = request.uri();
             let url_str = uri.to_string().replace("stream://", "https://");
             
-            // High-Performance Connection Pooling
-            // Reuse the client to avoid expensive SSL handshakes on every request
             let client = STREAM_CLIENT.get_or_init(|| {
                 reqwest::blocking::Client::builder()
                     .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-                    .timeout(std::time::Duration::from_secs(10)) // Fail fast on slow assets
+                    .timeout(std::time::Duration::from_secs(10)) 
                     .pool_idle_timeout(std::time::Duration::from_secs(90))
-                    .pool_max_idle_per_host(20) // Allow more concurrent connections
+                    .pool_max_idle_per_host(20)
                     .build()
                     .unwrap_or_default()
             });
