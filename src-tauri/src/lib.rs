@@ -56,10 +56,58 @@ async fn fetch_url(url: String) -> Result<String, String> {
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![greet, open_mini_player, fetch_url])
+        .register_uri_scheme_protocol("stream", |_app, request| {
+            let res_headers = tauri::http::HeaderMap::new();
+            let mut response_builder = tauri::http::Response::builder()
+                .header("Access-Control-Allow-Origin", "*")
+                .header("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE")
+                .header("Access-Control-Allow-Headers", "*");
+
+            // 1. Parse URL: stream://target... -> https://target...
+            let uri = request.uri();
+            let url_str = uri.to_string().replace("stream://", "https://");
+            
+            // 2. Fetch using blocking reqwest (simplest for thread pool)
+            let client = reqwest::blocking::Client::builder()
+                .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                .build()
+                .unwrap_or_default();
+
+            // 3. Forward request
+            // Note: simple GET for now. Complex POST handling would need body bridging.
+            match client.get(&url_str).send() {
+                Ok(resp) => {
+                    let status = resp.status();
+                    // Copy headers (excluding sec ones)
+                    for (key, value) in resp.headers() {
+                        let key_str = key.as_str().to_lowercase();
+                        // CRITICAL: Strip security headers that block iframe
+                        if key_str != "x-frame-options" 
+                           && key_str != "content-security-policy" 
+                           && key_str != "frame-options" {
+                             response_builder = response_builder.header(key, value);
+                        }
+                    }
+                    
+                    let bytes = resp.bytes().unwrap_or_default().to_vec();
+                    response_builder
+                        .status(status)
+                        .body(bytes)
+                        .map_err(|_| tauri::http::Error::new(tauri::http::StatusCode::INTERNAL_SERVER_ERROR))
+                },
+                Err(e) => {
+                     response_builder
+                        .status(tauri::http::StatusCode::BAD_GATEWAY)
+                        .body(e.to_string().into_bytes())
+                        .map_err(|_| tauri::http::Error::new(tauri::http::StatusCode::INTERNAL_SERVER_ERROR))
+                }
+            }
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
