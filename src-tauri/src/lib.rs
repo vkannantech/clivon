@@ -110,49 +110,20 @@ pub fn run() {
                 })
                 .build(app)?;
             
-            // --- INJECTIONS ---
-            
-            // 1. Lock Screen Media Fixer
-            let media_fixer = r#"
-                setInterval(() => {
-                   try {
-                    if (!navigator.mediaSession) return;
-                    const video = document.querySelector('video');
-                    if (!video) return;
+            // --- INJECTIONS (Optimized) ---
 
-                    const titleEl = document.querySelector('h1.ytd-video-primary-info-renderer') || document.querySelector('.ytp-title-link');
-                    const authorEl = document.querySelector('ytd-channel-name a') || document.querySelector('.ytp-title-expanded-title');
-                    
-                    if (titleEl) {
-                         const title = titleEl.innerText;
-                         const artist = authorEl ? authorEl.innerText : 'YouTube';
-                         if(navigator.mediaSession.metadata && navigator.mediaSession.metadata.title === title) return;
+            // 1. Clivon Core (Orchestrator: Header Mods, Notifications, Media Fixer, GPU Boost)
+            let core_js = include_str!("clivon_core.js");
+            let _ = main_window.eval(core_js);
 
-                         navigator.mediaSession.metadata = new MediaMetadata({
-                             title: title,
-                             artist: artist,
-                             album: 'YouTube Desktop',
-                             artwork: [
-                                 { src: 'https://img.youtube.com/vi/' + (new URLSearchParams(window.location.search).get('v')) + '/0.jpg', sizes: '512x512', type: 'image/jpeg' }
-                             ]
-                         });
-                   }
-                   } catch(e) {}
-                }, 2000);
-            "#;
-            let _ = main_window.eval(media_fixer);
-
-            // 2. Clivon AdShield Injection
+            // 2. Clivon AdShield (Separate heavily optimized engine)
             let adblock_js = include_str!("adblock.js");
             let _ = main_window.eval(adblock_js);
 
-            // 3. Focus Mode Engine
+            // 3. Focus Mode Engine (Togglable)
             let focus_js = include_str!("focus_mode.js");
             let _ = main_window.eval(focus_js);
 
-            // 4. Smart Notifications
-            let notify_js = include_str!("notifications.js");
-            let _ = main_window.eval(notify_js);
 
             // 5. Header Mods (Home & Fullscreen Buttons)
             let header_js = include_str!("header_mods.js");

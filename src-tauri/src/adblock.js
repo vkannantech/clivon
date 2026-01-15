@@ -41,17 +41,30 @@
                     skipBtn.click();
                     console.log("[Clivon AdShield] Auto-Skipped Ad");
                 }
+                // Debounce or logic to process batch could be added here if needed,
+                // but limiting scope is the biggest win.
+                mutations.forEach((mutation) => {
+                    // Logic to hide ads...
+                    // (We keep the existing robust removal logic inside the loop if it was there,
+                    //  or just let the CSS do the heavy lifting and this does cleanup)
+                    const ads = document.querySelectorAll(AD_SELECTORS.join(", "));
+                    ads.forEach(ad => ad.remove());
 
-                // Close Overlay Logic
-                const closeOverlay = document.querySelector(".ytp-ad-overlay-close-button");
-                if (closeOverlay) {
-                    closeOverlay.click();
-                }
-            }
-        }
-    });
+                    // Auto Skip
+                    const skipBtn = document.querySelector('.ytp-ad-skip-button, .ytp-ad-skip-button-modern');
+                    if (skipBtn) {
+                        skipBtn.click();
+                        console.log("[AdShield] Auto-Skipped Ad");
+                    }
+                });
+            });
 
-    observer.observe(document.body, { childList: true, subtree: true });
+    // Wait for App to load slightly before observing specific container
+    setTimeout(() => {
+        const target = document.querySelector('ytd-app') || document.body;
+        observer.observe(target, { childList: true, subtree: true });
+        console.log("[AdShield] Observing:", target.tagName);
+    }, 1000);
 
     // 3. Periodic Cleanup (Safety Net)
     setInterval(() => {
