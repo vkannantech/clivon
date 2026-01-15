@@ -22,42 +22,25 @@
 
     // 2. Active DOM Observer (For dynamic ads)
     const observer = new MutationObserver((mutations) => {
+        // Optimized Single Loop
         for (const mutation of mutations) {
-            if (mutation.addedNodes.length) {
-                // Check if any added node is a known ad or contains a known ad
-                for (const selector of AD_SELECTORS) {
-                    const ads = document.querySelectorAll(selector);
-                    ads.forEach(ad => {
-                        if (ad) {
-                            ad.remove();
-                            console.log("[Clivon AdShield] Removed Ad Node");
-                        }
-                    });
-                }
+            // Check added nodes for ads
+            if (mutation.addedNodes.length > 0) {
+                const ads = document.querySelectorAll(AD_SELECTORS.join(", "));
+                ads.forEach(ad => {
+                    ad.remove();
+                    console.log("[AdShield] Removed Ad Node");
+                });
 
-                // Auto-Skip Logic
+                // Auto-Skip
                 const skipBtn = document.querySelector(".ytp-ad-skip-button") || document.querySelector(".ytp-ad-skip-button-modern");
                 if (skipBtn) {
                     skipBtn.click();
-                    console.log("[Clivon AdShield] Auto-Skipped Ad");
+                    console.log("[AdShield] Auto-Skipped Ad");
                 }
-                // Debounce or logic to process batch could be added here if needed,
-                // but limiting scope is the biggest win.
-                mutations.forEach((mutation) => {
-                    // Logic to hide ads...
-                    // (We keep the existing robust removal logic inside the loop if it was there,
-                    //  or just let the CSS do the heavy lifting and this does cleanup)
-                    const ads = document.querySelectorAll(AD_SELECTORS.join(", "));
-                    ads.forEach(ad => ad.remove());
-
-                    // Auto Skip
-                    const skipBtn = document.querySelector('.ytp-ad-skip-button, .ytp-ad-skip-button-modern');
-                    if (skipBtn) {
-                        skipBtn.click();
-                        console.log("[AdShield] Auto-Skipped Ad");
-                    }
-                });
-            });
+            }
+        }
+    });
 
     // Wait for App to load slightly before observing specific container
     setTimeout(() => {
