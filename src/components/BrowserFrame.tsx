@@ -1,5 +1,5 @@
 
-import { FC, useRef, useState } from 'react';
+import { FC, useRef, useState, useEffect } from 'react';
 import { AlertTriangle } from 'lucide-react';
 
 interface BrowserFrameProps {
