@@ -13,9 +13,11 @@
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-opener": "^2",
     "clsx": "^2.1.1",
+    "jimp": "^1.6.0",
     "lucide-react": "^0.562.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "sharp": "^0.34.5",
     "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {
@@ -24,6 +26,7 @@
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.6.0",
     "autoprefixer": "^10.4.17",
+    "png-to-ico": "^3.0.1",
     "postcss": "^8.4.35",
     "tailwindcss": "^3.4.17",
     "typescript": "~5.8.3",
