@@ -1,73 +1,43 @@
-# YouTube Desktop by Clivon
+# Clivon — Focused YouTube Experience (Electron Edition)
 
-> **Experience YouTube like never before. Native performance. Zero distractions. Ultimate control.**
+Clivon is a **native desktop application** (built with Electron) that transforms YouTube into a focused, distraction-free, productivity-first environment.
 
-![Clivon YouTube Client](public/icon.png)
+Unlike standard browsers, Clivon does not expose tabs, address bars, or browser chrome. It treats YouTube as a native app — providing a sleek, cinema-grade viewing experience.
 
-## 🚀 Overview
+## Key Principles
+* 🎯 **Focus over clutter**: No tabs, no URL bars, just content.
+* 🚀 **Lite & Fast**: Optimized "One-Click" installer (Zero Compression) for instant deployment.
+* � **Native Feel**: Custom branding and seamless desktop integration.
+* 🛡️ **Stable Core**: Rebuilt on Electron for maximum compatibility and performance.
 
-**YouTube Desktop** is a cutting-edge, high-performance client designed for power users who demand more than a browser tab. Built on the **Tauri V2** engine, it leverages a unique **Native Window Architecture** to deliver a lag-free, ad-blocked*, and tracking-minimized experience.
+## Architecture Overview
+* **Electron Core**: Leveraging the power of Chromium and Node.js.
+* **Vanilla Mode**: A clean, stable environment tailored for performance.
+* **Portable & Installable**: Available as both a portable EXE and a high-speed NSIS installer.
 
-Unlike other clients that use heavy Electron wrappers, Clivon's engine uses Rust to spawn lightweight, native OS webviews. This ensures:
-- **Instant Launch Times**
-- **Native 403 Bypass** (No "Video Unavailable" errors)
-- **Zero White Flashing** (Custom Dark Loader Injection)
+## Roadmap
 
----
+### ✅ V1 — REBORN (Electron)
+**Status**: Stable (v1.0.0)
+* [x] Ported to Electron Architecture
+* [x] "Lite" Build (Removed unused extensions ~460MB saved)
+* [x] Fast Installer (One-Click, Instant Install)
+* [x] Custom Icon Integration (`clivonlatestlogo.png`)
 
-## ✨ Features
+### 🚀 V2 — ENHANCEMENTS
+**Status**: In Progress
+* **Focus Mode**: Focus timer, distraction hiding.
+* **Smart Fullscreen**: Cinema-grade experience.
+* **Advanced Features**: Exploring secure integrations.
 
-### 🖥️ Native Hyper-Browser
-Bypassing fragile proxy methods, our **Native Child Window System** launches a direct portal to YouTube's engine. This ensures 100% compatibility with 4K HDR streaming while stripping away browser overhead.
+## Controls
+| Key | Action |
+| :--- | :--- |
+| `F11` | Toggle Fullscreen |
+| `Ctrl+R` | Refresh |
+| `Alt+F4` | Quit App |
 
-### 🎭 Multi-Window Mini Player (PiP Pro)
-Work and watch simultaneously.
-- **Always-on-Top**: Never lose sight of your video.
-- **Borderless & Resizeable**: Fits perfectly in any corner.
-- **Crash-Proof**: Intelligent environment detection prevents usage outside the desktop app.
-
-### 🧘 Zen Mode
-Hit `Ctrl + B` (or use the dock) to vanish all UI elements. Just you and the content.
-- **Hidden Sidebar/Tabs**
-- **Immersive Viewing**
-
-### 🔒 Built-in Privacy & Speed
-- **Tracker Domain Filtering**: Actively blocks known tracking domains at the network request level.
-- **Performance**: Rust-based connection pooling and Brotli compression for lightning-fast asset loading.
-
----
-
-## ⌨️ Shortcuts
-
-| Shortcut | Action |
-|----------|--------|
-| `Ctrl + T` | New Tab |
-| `Ctrl + W` | Close Tab |
-| `Ctrl + M` | Toggle Mini Player |
-| `Ctrl + B` | Toggle Zen Mode |
-
----
-
-## 📦 Installation / Development
-
-To build the app yourself:
-
-```bash
-# 1. Install Dependencies
-npm install
-
-# 2. Run Development Mode (Desktop App)
-npm run tauri dev
-
-# 3. Build Production Release (MSI/DMG/Deb)
-npm run tauri build
-```
-
----
-
-## 🛡️ License & Credits
-
-**Published by Clivon**
-© 2024 Clivon Inc. All Rights Reserved.
-
-*This project is an independent client and is not affiliated with Google LLC. YouTube is a trademark of Google LLC.*
+## Installation
+1. Download `Clivon Setup 1.0.0.exe`.
+2. Click to install (Instant One-Click).
+3. Launch from Desktop or Start Menu.

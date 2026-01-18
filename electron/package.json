@@ -1,0 +1,42 @@
+{
+  "name": "clivon-electron",
+  "version": "1.0.0",
+  "description": "Clivon - YouTube Ad-Free Engine",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder"
+  },
+  "keywords": [],
+  "author": "KannanTech",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^23.0.6"
+  },
+  "build": {
+    "appId": "com.kannantech.clivon",
+    "productName": "Clivon",
+    "win": {
+      "target": "nsis",
+      "icon": "icon.png"
+    },
+    "compression": "store",
+    "nsis": {
+      "oneClick": true,
+      "allowToChangeInstallationDirectory": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Clivon",
+      "runAfterFinish": true
+    }
+  },
+  "dependencies": {
+    "@cliqz/adblocker-electron": "^1.34.0",
+    "anyproxy": "^2.4.6",
+    "express": "^5.2.1",
+    "fastify": "^5.7.1",
+    "http-proxy": "^1.18.1",
+    "puppeteer-core": "^24.35.0"
+  }
+}

@@ -1,0 +1,23 @@
+{
+    "manifest_version": 2,
+    "name": "Clivon Shield",
+    "version": "1.0",
+    "description": "Native High-Performance AdBlocker for Clivon",
+    "permissions": [
+        "tabs",
+        "http://*/*",
+        "https://*/*"
+    ],
+    "content_scripts": [
+        {
+            "matches": [
+                "*://*.youtube.com/*"
+            ],
+            "js": [
+                "content.js"
+            ],
+            "run_at": "document_start",
+            "all_frames": true
+        }
+    ]
+}
