@@ -2,7 +2,7 @@
 
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows-0078D6.svg?logo=windows&logoColor=white)](https://www.microsoft.com/windows)
-[![Status](https://img.shields.io/badge/status-Stable%20v1.0.0-success.svg)](#)
+[![Status](https://img.shields.io/badge/status-Stable%20v1.0.1-success.svg)](#)
 [![Built With](https://img.shields.io/badge/Built%20With-Chromium-4285F4.svg?logo=google-chrome&logoColor=white)](#)
 
 ### 📺 Focused YouTube Desktop Experience (Chromium-Based)
@@ -80,7 +80,7 @@ Clivon is designed for:
 ## 🗺️ Roadmap
 
 ### ✅ Version 1 — REBORN
-**Status:** Stable (`v1.0.0`)
+**Status:** Stable (`v1.0.1`)
 *   [x] Chromium-based desktop architecture
 *   [x] Lightweight optimized build
 *   [x] One-click installer

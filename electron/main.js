@@ -16,7 +16,7 @@ const fs = require('fs');
 // ============================================
 
 const CONFIG = {
-    VERSION: '11.0.ADVANCED_MULTI_LAYER',
+    VERSION: '1.0.1',
     USER_AGENT: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
     BLOCKING_MODE: 'MULTI_LAYER_AGGRESSIVE',
     AUTO_FULLSCREEN: true,
