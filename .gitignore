@@ -29,6 +29,6 @@ build_output.txt
 Clivon_Setup.zip
 
 # Electron Specific
-electron/dist/
-electron/node_modules/
-electron/.dist/
+app/dist/
+app/node_modules/
+app/.dist/
