@@ -25,6 +25,14 @@
       "target": "nsis",
       "icon": "icon.png"
     },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "icon": "icon.png",
+      "category": "Video"
+    },
     "compression": "store",
     "nsis": {
       "oneClick": true,
