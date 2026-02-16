@@ -21,6 +21,7 @@ jspm_packages/
 *.swp
 *.swo
 *.vs
+.opensource\
 
 # Project Specific
 cache/
