@@ -22,7 +22,8 @@ app.commandLine.appendSwitch('disable-quic');
 
 const CONFIG = {
     VERSION: '1.0.1',
-    USER_AGENT: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+    // UPDATED: Use a recent, standard Chrome User Agent to pass Google Security Checks
+    USER_AGENT: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36',
     BLOCKING_MODE: 'MULTI_LAYER_AGGRESSIVE',
     AUTO_FULLSCREEN: true,
     HARDWARE_ACCELERATION: true,
@@ -370,13 +371,9 @@ async function createAdvancedWindow() {
 
     const ses = session.defaultSession;
 
-    // Set native user agent (Sanitized)
-    // Dynamic replacement is safer than hardcoding versions
-    const originalUA = ses.getUserAgent();
-    // Remove "Electron/x.y.z" and App Name
-    const cleanUA = originalUA
-        .replace(/Electron\/[0-9\.]+\s/, '')
-        .replace(/clivon\/[0-9\.]+\s/, '');
+    // [FIX] Google Sign-In "Secure Browser" Error
+    // Use a clean, standard Chrome User Agent. Do NOT append Electron/App names.
+    const cleanUA = CONFIG.USER_AGENT;
 
     ses.setUserAgent(cleanUA);
     app.userAgentFallback = cleanUA;
