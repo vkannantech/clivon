@@ -15,6 +15,10 @@ const fs = require('fs');
 
 // [FIX] Disable QUIC to prevent YouTube playback errors and connection reset
 app.commandLine.appendSwitch('disable-quic');
+// [FIX] Hardened Anti-Detection for Google Sign-In
+app.commandLine.appendSwitch('disable-blink-features', 'AutomationControlled');
+app.commandLine.appendSwitch('disable-features', 'CrossSiteDocumentBlockingIfIsolating,SameSiteByDefaultCookies');
+app.commandLine.appendSwitch('enable-features', 'NetworkService,NetworkServiceInProcess');
 
 // ============================================
 // ADVANCED CONFIGURATION

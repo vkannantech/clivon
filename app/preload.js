@@ -13,6 +13,13 @@ if (window.trustedTypes && window.trustedTypes.createPolicy) {
     }
 }
 
+// [FIX] Deep Stealth: Remove defined webdriver property completely
+try {
+    Object.defineProperty(navigator, 'webdriver', {
+        get: () => undefined
+    });
+} catch (e) { }
+
 // [REMOVED] IMPORT C++ PORTED ENGINES
 // const { QuantumHyperNuclear } = require('./quantum-shield.js');
 // const ClientAdBlockEngine = require('./client-adblock-engine.js');
