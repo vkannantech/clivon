@@ -11,6 +11,9 @@ const fs = require('fs');
 // [REMOVED] Network Boost Engine
 // Restored to Vanilla State
 
+// [FIX] Disable QUIC to prevent YouTube playback errors and connection reset
+app.commandLine.appendSwitch('disable-quic');
+
 // ============================================
 // ADVANCED CONFIGURATION
 // ============================================
@@ -415,9 +418,27 @@ async function createAdvancedWindow() {
         }
     });
 
+    // Handle Google Sign-In Popups
+    mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+        if (url.startsWith('https://accounts.google.com') || url.startsWith('https://www.google.com/accounts')) {
+            return {
+                action: 'allow',
+                overrideBrowserWindowOptions: {
+                    autoHideMenuBar: true,
+                    webPreferences: {
+                        contextIsolation: true,
+                        nodeIntegration: false,
+                        sandbox: true
+                    }
+                }
+            };
+        }
+        return { action: 'deny' };
+    });
+
     // Navigation handling (SAME AS BEFORE)
     mainWindow.webContents.on('will-navigate', (event, url) => {
-        const allowedDomains = ['youtube.com', 'googlevideo.com', 'accounts.google.com', 'google.com'];
+        const allowedDomains = ['youtube.com', 'googlevideo.com', 'accounts.google.com', 'google.com', 'gstatic.com'];
         const isAllowed = allowedDomains.some(domain => url.includes(domain));
 
         if (!isAllowed) {

@@ -49,35 +49,35 @@ import { hasBroadHostPermissions } from './ext-utils.js';
 // 2:  optimal filtering
 // 3: complete filtering
 
-export const     MODE_NONE = 0;
-export const    MODE_BASIC = 1;
-export const  MODE_OPTIMAL = 2;
+export const MODE_NONE = 0;
+export const MODE_BASIC = 1;
+export const MODE_OPTIMAL = 2;
 export const MODE_COMPLETE = 3;
 
 export const defaultFilteringModes = {
     none: [],
     basic: [],
-    optimal: [ 'all-urls' ],
-    complete: [],
+    optimal: [],
+    complete: ['all-urls'],
 };
 
 /******************************************************************************/
 
 const pruneDescendantHostnamesFromSet = (hostname, hnSet) => {
-    for ( const hn of hnSet ) {
-        if ( hn.endsWith(hostname) === false ) { continue; }
-        if ( hn === hostname ) { continue; }
-        if ( hn.at(-hostname.length-1) !== '.' ) { continue; }
+    for (const hn of hnSet) {
+        if (hn.endsWith(hostname) === false) { continue; }
+        if (hn === hostname) { continue; }
+        if (hn.at(-hostname.length - 1) !== '.') { continue; }
         hnSet.delete(hn);
     }
 };
 
 const pruneHostnameFromSet = (hostname, hnSet) => {
     let hn = hostname;
-    for (;;) {
+    for (; ;) {
         hnSet.delete(hn);
         hn = toBroaderHostname(hn);
-        if ( hn === '*' ) { break; }
+        if (hn === '*') { break; }
     }
 };
 
@@ -105,28 +105,28 @@ const unserializeModeDetails = details => {
 
 function lookupFilteringMode(filteringModes, hostname) {
     const { none, basic, optimal, complete } = filteringModes;
-    if ( hostname === 'all-urls' ) {
-        if ( filteringModes.none.has('all-urls') ) { return MODE_NONE; }
-        if ( filteringModes.basic.has('all-urls') ) { return MODE_BASIC; }
-        if ( filteringModes.optimal.has('all-urls') ) { return MODE_OPTIMAL; }
-        if ( filteringModes.complete.has('all-urls') ) { return MODE_COMPLETE; }
+    if (hostname === 'all-urls') {
+        if (filteringModes.none.has('all-urls')) { return MODE_NONE; }
+        if (filteringModes.basic.has('all-urls')) { return MODE_BASIC; }
+        if (filteringModes.optimal.has('all-urls')) { return MODE_OPTIMAL; }
+        if (filteringModes.complete.has('all-urls')) { return MODE_COMPLETE; }
         return MODE_BASIC;
     }
-    if ( none.has(hostname) ) { return MODE_NONE; }
-    if ( none.has('all-urls') === false ) {
-        if ( isDescendantHostnameOfIter(hostname, none) ) { return MODE_NONE; }
+    if (none.has(hostname)) { return MODE_NONE; }
+    if (none.has('all-urls') === false) {
+        if (isDescendantHostnameOfIter(hostname, none)) { return MODE_NONE; }
     }
-    if ( basic.has(hostname) ) { return MODE_BASIC; }
-    if ( basic.has('all-urls') === false ) {
-        if ( isDescendantHostnameOfIter(hostname, basic) ) { return MODE_BASIC; }
+    if (basic.has(hostname)) { return MODE_BASIC; }
+    if (basic.has('all-urls') === false) {
+        if (isDescendantHostnameOfIter(hostname, basic)) { return MODE_BASIC; }
     }
-    if ( optimal.has(hostname) ) { return MODE_OPTIMAL; }
-    if ( optimal.has('all-urls') === false ) {
-        if ( isDescendantHostnameOfIter(hostname, optimal) ) { return MODE_OPTIMAL; }
+    if (optimal.has(hostname)) { return MODE_OPTIMAL; }
+    if (optimal.has('all-urls') === false) {
+        if (isDescendantHostnameOfIter(hostname, optimal)) { return MODE_OPTIMAL; }
     }
-    if ( complete.has(hostname) ) { return MODE_COMPLETE; }
-    if ( complete.has('all-urls') === false ) {
-        if ( isDescendantHostnameOfIter(hostname, complete) ) { return MODE_COMPLETE; }
+    if (complete.has(hostname)) { return MODE_COMPLETE; }
+    if (complete.has('all-urls') === false) {
+        if (isDescendantHostnameOfIter(hostname, complete)) { return MODE_COMPLETE; }
     }
     return lookupFilteringMode(filteringModes, 'all-urls');
 }
@@ -135,85 +135,85 @@ function lookupFilteringMode(filteringModes, hostname) {
 
 function applyFilteringMode(filteringModes, hostname, afterLevel) {
     const defaultLevel = lookupFilteringMode(filteringModes, 'all-urls');
-    if ( hostname === 'all-urls' ) {
-        if ( afterLevel === defaultLevel ) { return afterLevel; }
-        switch ( afterLevel ) {
-        case MODE_NONE:
-            filteringModes.none.clear();
-            filteringModes.none.add('all-urls');
-            break;
-        case MODE_BASIC:
-            filteringModes.basic.clear();
-            filteringModes.basic.add('all-urls');
-            break;
-        case MODE_OPTIMAL:
-            filteringModes.optimal.clear();
-            filteringModes.optimal.add('all-urls');
-            break;
-        case MODE_COMPLETE:
-            filteringModes.complete.clear();
-            filteringModes.complete.add('all-urls');
-            break;
+    if (hostname === 'all-urls') {
+        if (afterLevel === defaultLevel) { return afterLevel; }
+        switch (afterLevel) {
+            case MODE_NONE:
+                filteringModes.none.clear();
+                filteringModes.none.add('all-urls');
+                break;
+            case MODE_BASIC:
+                filteringModes.basic.clear();
+                filteringModes.basic.add('all-urls');
+                break;
+            case MODE_OPTIMAL:
+                filteringModes.optimal.clear();
+                filteringModes.optimal.add('all-urls');
+                break;
+            case MODE_COMPLETE:
+                filteringModes.complete.clear();
+                filteringModes.complete.add('all-urls');
+                break;
         }
-        switch ( defaultLevel ) {
-        case MODE_NONE:
-            filteringModes.none.delete('all-urls');
-            break;
-        case MODE_BASIC:
-            filteringModes.basic.delete('all-urls');
-            break;
-        case MODE_OPTIMAL:
-            filteringModes.optimal.delete('all-urls');
-            break;
-        case MODE_COMPLETE:
-            filteringModes.complete.delete('all-urls');
-            break;
+        switch (defaultLevel) {
+            case MODE_NONE:
+                filteringModes.none.delete('all-urls');
+                break;
+            case MODE_BASIC:
+                filteringModes.basic.delete('all-urls');
+                break;
+            case MODE_OPTIMAL:
+                filteringModes.optimal.delete('all-urls');
+                break;
+            case MODE_COMPLETE:
+                filteringModes.complete.delete('all-urls');
+                break;
         }
         return lookupFilteringMode(filteringModes, 'all-urls');
     }
     const beforeLevel = lookupFilteringMode(filteringModes, hostname);
-    if ( afterLevel === beforeLevel ) { return afterLevel; }
+    if (afterLevel === beforeLevel) { return afterLevel; }
     const { none, basic, optimal, complete } = filteringModes;
-    switch ( beforeLevel ) {
-    case MODE_NONE:
-        pruneHostnameFromSet(hostname, none);
-        break;
-    case MODE_BASIC:
-        pruneHostnameFromSet(hostname, basic);
-        break;
-    case MODE_OPTIMAL:
-        pruneHostnameFromSet(hostname, optimal);
-        break;
-    case MODE_COMPLETE:
-        pruneHostnameFromSet(hostname, complete);
-        break;
-    }
-    if ( afterLevel !== defaultLevel ) {
-        switch ( afterLevel ) {
+    switch (beforeLevel) {
         case MODE_NONE:
-            if ( isDescendantHostnameOfIter(hostname, none) === false ) {
-                filteringModes.none.add(hostname);
-                pruneDescendantHostnamesFromSet(hostname, none);
-            }
+            pruneHostnameFromSet(hostname, none);
             break;
         case MODE_BASIC:
-            if ( isDescendantHostnameOfIter(hostname, basic) === false ) {
-                filteringModes.basic.add(hostname);
-                pruneDescendantHostnamesFromSet(hostname, basic);
-            }
+            pruneHostnameFromSet(hostname, basic);
             break;
         case MODE_OPTIMAL:
-            if ( isDescendantHostnameOfIter(hostname, optimal) === false ) {
-                filteringModes.optimal.add(hostname);
-                pruneDescendantHostnamesFromSet(hostname, optimal);
-            }
+            pruneHostnameFromSet(hostname, optimal);
             break;
         case MODE_COMPLETE:
-            if ( isDescendantHostnameOfIter(hostname, complete) === false ) {
-                filteringModes.complete.add(hostname);
-                pruneDescendantHostnamesFromSet(hostname, complete);
-            }
+            pruneHostnameFromSet(hostname, complete);
             break;
+    }
+    if (afterLevel !== defaultLevel) {
+        switch (afterLevel) {
+            case MODE_NONE:
+                if (isDescendantHostnameOfIter(hostname, none) === false) {
+                    filteringModes.none.add(hostname);
+                    pruneDescendantHostnamesFromSet(hostname, none);
+                }
+                break;
+            case MODE_BASIC:
+                if (isDescendantHostnameOfIter(hostname, basic) === false) {
+                    filteringModes.basic.add(hostname);
+                    pruneDescendantHostnamesFromSet(hostname, basic);
+                }
+                break;
+            case MODE_OPTIMAL:
+                if (isDescendantHostnameOfIter(hostname, optimal) === false) {
+                    filteringModes.optimal.add(hostname);
+                    pruneDescendantHostnamesFromSet(hostname, optimal);
+                }
+                break;
+            case MODE_COMPLETE:
+                if (isDescendantHostnameOfIter(hostname, complete) === false) {
+                    filteringModes.complete.add(hostname);
+                    pruneDescendantHostnamesFromSet(hostname, complete);
+                }
+                break;
         }
     }
     return lookupFilteringMode(filteringModes, hostname);
@@ -222,12 +222,12 @@ function applyFilteringMode(filteringModes, hostname, afterLevel) {
 /******************************************************************************/
 
 export async function readFilteringModeDetails(bypassCache = false) {
-    if ( bypassCache === false ) {
-        if ( readFilteringModeDetails.cache ) {
+    if (bypassCache === false) {
+        if (readFilteringModeDetails.cache) {
             return readFilteringModeDetails.cache;
         }
         const sessionModes = await sessionRead('filteringModeDetails');
-        if ( sessionModes instanceof Object ) {
+        if (sessionModes instanceof Object) {
             readFilteringModeDetails.cache = unserializeModeDetails(sessionModes);
             return readFilteringModeDetails.cache;
         }
@@ -242,7 +242,7 @@ export async function readFilteringModeDetails(bypassCache = false) {
         adminReadEx('noFiltering'),
     ]);
     userModes = unserializeModeDetails(userModes);
-    if ( adminDefaultFiltering !== undefined ) {
+    if (adminDefaultFiltering !== undefined) {
         const modefromName = {
             none: MODE_NONE,
             basic: MODE_BASIC,
@@ -250,16 +250,16 @@ export async function readFilteringModeDetails(bypassCache = false) {
             complete: MODE_COMPLETE,
         };
         const adminDefaultFilteringMode = modefromName[adminDefaultFiltering];
-        if ( adminDefaultFilteringMode !== undefined ) {
+        if (adminDefaultFilteringMode !== undefined) {
             applyFilteringMode(userModes, 'all-urls', adminDefaultFilteringMode);
         }
     }
-    if ( Array.isArray(adminNoFiltering) && adminNoFiltering.length !== 0 ) {
-        if ( adminNoFiltering.includes('-*') ) {
+    if (Array.isArray(adminNoFiltering) && adminNoFiltering.length !== 0) {
+        if (adminNoFiltering.includes('-*')) {
             userModes.none.clear();
         }
-        for ( const hn of adminNoFiltering ) {
-            if ( hn.charAt(0) === '-' ) {
+        for (const hn of adminNoFiltering) {
+            if (hn.charAt(0) === '-') {
                 userModes.none.delete(hn.slice(1));
             } else {
                 applyFilteringMode(userModes, hn, 0);
@@ -339,7 +339,7 @@ export function setDefaultFilteringMode(afterLevel) {
 /******************************************************************************/
 
 export async function persistHostPermissions(iter) {
-    if ( iter === undefined ) {
+    if (iter === undefined) {
         const permissions = await browser.permissions.getAll();
         iter = hostnamesFromMatches(permissions.origins) || [];
     }
@@ -368,36 +368,36 @@ export async function syncWithBrowserPermissions() {
     const broadHostPermissionsToggled =
         hasBroadHostPermissions !== rulesetConfig.hasBroadHostPermissions;
     let modified = false;
-    if ( beforeMode > MODE_BASIC && hasBroadHostPermissions === false ) {
+    if (beforeMode > MODE_BASIC && hasBroadHostPermissions === false) {
         await setDefaultFilteringMode(MODE_BASIC);
         modified = true;
-    } else if ( beforeMode === MODE_BASIC && hasBroadHostPermissions && broadHostPermissionsToggled ) {
+    } else if (beforeMode === MODE_BASIC && hasBroadHostPermissions && broadHostPermissionsToggled) {
         await setDefaultFilteringMode(MODE_OPTIMAL);
         modified = true;
     }
-    if ( broadHostPermissionsToggled ) {
+    if (broadHostPermissionsToggled) {
         rulesetConfig.hasBroadHostPermissions = hasBroadHostPermissions;
         saveRulesetConfig();
     }
     const afterMode = await getDefaultFilteringMode();
-    if ( afterMode > MODE_BASIC ) { return afterMode !== beforeMode; }
+    if (afterMode > MODE_BASIC) { return afterMode !== beforeMode; }
     const filteringModes = await getFilteringModeDetails();
-    if ( afterAllowedHostnames.has('all-urls') === false ) {
+    if (afterAllowedHostnames.has('all-urls') === false) {
         const { none, basic, optimal, complete } = filteringModes;
-        for ( const hn of new Set([ ...optimal, ...complete ]) ) {
-            if ( afterAllowedHostnames.has(hn) ) { continue; }
-            if ( isDescendantHostnameOfIter(hn, afterAllowedHostnames) ) { continue; }
+        for (const hn of new Set([...optimal, ...complete])) {
+            if (afterAllowedHostnames.has(hn)) { continue; }
+            if (isDescendantHostnameOfIter(hn, afterAllowedHostnames)) { continue; }
             applyFilteringMode(filteringModes, hn, afterMode);
             modified = true;
         }
-        for ( const hn of afterAllowedHostnames ) {
-            if ( beforeAllowedHostnames.has(hn) ) { continue; }
-            if ( optimal.has(hn) || complete.has(hn) ) { continue; }
-            if ( basic.has(hn) || none.has(hn) ) { continue; }
+        for (const hn of afterAllowedHostnames) {
+            if (beforeAllowedHostnames.has(hn)) { continue; }
+            if (optimal.has(hn) || complete.has(hn)) { continue; }
+            if (basic.has(hn) || none.has(hn)) { continue; }
             applyFilteringMode(filteringModes, hn, MODE_OPTIMAL);
             modified = true;
         }
-        if ( modified ) {
+        if (modified) {
             await writeFilteringModeDetails(filteringModes);
         }
     }

@@ -1,4 +1,17 @@
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webFrame } = require('electron');
+
+// [FIX] Trusted Types Policy for CSP Compliance
+if (window.trustedTypes && window.trustedTypes.createPolicy) {
+    if (!window.trustedTypes.defaultPolicy) {
+        try {
+            window.trustedTypes.createPolicy('default', {
+                createHTML: (string) => string,
+                createScript: (string) => string,
+                createScriptURL: (string) => string,
+            });
+        } catch (e) { console.warn('Trusted Types policy creation failed:', e); }
+    }
+}
 
 // [REMOVED] IMPORT C++ PORTED ENGINES
 // const { QuantumHyperNuclear } = require('./quantum-shield.js');
