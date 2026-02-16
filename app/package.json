@@ -10,6 +10,10 @@
   "keywords": [],
   "author": "KannanTech",
   "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vkannantech/clivon.git"
+  },
   "devDependencies": {
     "electron": "^33.0.0",
     "electron-builder": "^23.0.6"
