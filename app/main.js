@@ -48,7 +48,8 @@ let adStats = {
 async function loadAdvancedExtensions() {
     console.log('🛡️ Loading Advanced Extensions System...');
 
-    const extPath = path.join(__dirname, 'extensions', 'uBlock0.chromium', 'uBlock0.chromium');
+    // UPDATED: Pointing to uBlock Origin Lite (MV3)
+    const extPath = path.join(__dirname, 'extensions', 'uBOL');
 
     if (fs.existsSync(path.join(extPath, 'manifest.json'))) {
         try {
@@ -57,14 +58,14 @@ async function loadAdvancedExtensions() {
             });
 
             if (ext) {
-                console.log(`✅ [uBlock Origin] ACTIVATED: v${ext.version}`);
-                console.log(`🛡️ [uBlock Origin] Path: ${extPath}`);
+                console.log(`✅ [uBlock Origin Lite] ACTIVATED: v${ext.version}`);
+                console.log(`🛡️ [uBOL] Path: ${extPath}`);
 
                 // Configure uBlock for YouTube
                 setTimeout(() => {
                     if (mainWindow) {
                         mainWindow.webContents.executeJavaScript(`
-                            console.log("🛡️ [Clivon Shield] uBlock Origin is protecting the viewport");
+                            console.log("🛡️ [Clivon Shield] uBlock Origin Lite is protecting the viewport");
                         `).catch(() => { });
                     }
                 }, 5000);
@@ -73,7 +74,7 @@ async function loadAdvancedExtensions() {
             console.log('⚠️ Extension loading failed:', err.message);
         }
     } else {
-        console.log('⚠️ uBlock extension not found at:', extPath);
+        console.log('⚠️ uBOL extension not found at:', extPath);
     }
 }
 

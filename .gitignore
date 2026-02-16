@@ -20,10 +20,11 @@ jspm_packages/
 .DS_Store
 *.swp
 *.swo
+*.vs
 
 # Project Specific
 cache/
-extensions/
+
 legacy_backup/
 build_output.txt
 Clivon_Setup.zip
