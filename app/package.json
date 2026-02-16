@@ -8,7 +8,7 @@
     "dist": "electron-builder"
   },
   "keywords": [],
-  "author": "KannanTech",
+  "author": "KannanTech <support@kannantech.com>",
   "license": "ISC",
   "repository": {
     "type": "git",
