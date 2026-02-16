@@ -4,7 +4,9 @@
  * Same UI but Advanced Ad Blocking
  */
 
-const { app, BrowserWindow, session, ipcMain, net } = require('electron');
+const { app, BrowserWindow, session, ipcMain, net, shell } = require('electron');
+
+
 const path = require('path');
 const fs = require('fs');
 
@@ -418,8 +420,9 @@ async function createAdvancedWindow() {
         }
     });
 
-    // Handle Google Sign-In Popups
+    // Handle Window Open Requests (Popups & External Links)
     mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+        // ALLOW: Google Sign-In Popups (Internal)
         if (url.startsWith('https://accounts.google.com') || url.startsWith('https://www.google.com/accounts')) {
             return {
                 action: 'allow',
@@ -433,17 +436,22 @@ async function createAdvancedWindow() {
                 }
             };
         }
+
+        // DENY & OPEN EXTERNAL: Everything else (e.g. Links in description)
+        shell.openExternal(url);
         return { action: 'deny' };
     });
 
-    // Navigation handling (SAME AS BEFORE)
+    // Handle In-App Navigation (Same Tab)
     mainWindow.webContents.on('will-navigate', (event, url) => {
         const allowedDomains = ['youtube.com', 'googlevideo.com', 'accounts.google.com', 'google.com', 'gstatic.com'];
         const isAllowed = allowedDomains.some(domain => url.includes(domain));
 
         if (!isAllowed) {
-            console.log(`🚫 Blocked navigation: ${url}`);
+            // Block navigation and open in external browser
+            console.log(`� Opening external: ${url}`);
             event.preventDefault();
+            shell.openExternal(url);
         }
     });
 
