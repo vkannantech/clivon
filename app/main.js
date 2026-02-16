@@ -79,6 +79,96 @@ async function loadAdvancedExtensions() {
 }
 
 // ============================================
+// 1.5 USER EXTENSION LOADER (AUTO-DISCOVERY)
+// ============================================
+async function loadUserExtensions() {
+    console.log('🔍 Looking for User Extensions...');
+    const configPath = path.join(__dirname, 'clivon.json');
+    let extensionPaths = [];
+
+    // 1. Load from Config
+    if (fs.existsSync(configPath)) {
+        try {
+            const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+            if (config.extensionPaths && Array.isArray(config.extensionPaths)) {
+                extensionPaths.push(...config.extensionPaths);
+            }
+        } catch (e) {
+            console.error('⚠️ Error reading clivon.json:', e.message);
+        }
+    }
+
+    // 2. Add Default Fallbacks
+    const home = app.getPath('home');
+    const defaultPaths = [
+        path.join(home, 'AppData', 'Local', 'Google', 'Chrome', 'User Data', 'Default', 'Extensions'),
+        path.join(home, 'AppData', 'Local', 'Google', 'Chrome', 'User Data', 'Profile 1', 'Extensions'),
+        path.join(home, 'AppData', 'Local', 'Microsoft', 'Edge', 'User Data', 'Default', 'Extensions'),
+        path.join(home, 'AppData', 'Local', 'Microsoft', 'Edge', 'User Data', 'Profile 1', 'Extensions')
+    ];
+    extensionPaths.push(...defaultPaths);
+
+    // Remove duplicates
+    extensionPaths = [...new Set(extensionPaths)];
+
+    for (let extDir of extensionPaths) {
+        if (fs.existsSync(extDir)) {
+            console.log(`📂 Checking extension path: ${extDir}`);
+
+            // Case A: Direct path to an extension (has manifest)
+            if (fs.existsSync(path.join(extDir, 'manifest.json'))) {
+                await loadOneExtension(extDir);
+                continue;
+            }
+
+            // Case B: Extensions folder (contains IDs)
+            try {
+                const entries = fs.readdirSync(extDir, { withFileTypes: true });
+                for (const entry of entries) {
+                    if (entry.isDirectory()) {
+                        const idPath = path.join(extDir, entry.name);
+
+                        // Check if this ID folder has versions inside
+                        if (fs.existsSync(idPath)) {
+                            const versionEntries = fs.readdirSync(idPath, { withFileTypes: true });
+                            // Sort to get latest version
+                            const versions = versionEntries
+                                .filter(v => v.isDirectory())
+                                .map(v => v.name)
+                                .sort((a, b) => {
+                                    return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+                                });
+
+                            if (versions.length > 0) {
+                                const latestVersion = versions.pop();
+                                const fullPath = path.join(idPath, latestVersion);
+                                await loadOneExtension(fullPath);
+                            }
+                        }
+                    }
+                }
+            } catch (e) {
+                console.log(`⚠️ Failed to scan dir ${extDir}: ${e.message}`);
+            }
+        }
+    }
+}
+
+async function loadOneExtension(dir) {
+    try {
+        const ext = await session.defaultSession.loadExtension(dir, { allowFileAccess: true });
+        if (ext) {
+            console.log(`✅ [User Ext] Loaded: ${ext.name} (v${ext.version})`);
+        }
+    } catch (e) {
+        // Ignore duplicate extension errors or manifest errors
+        if (!e.message.includes('Extension is already loaded')) {
+            console.log(`❌ Failed to load ${path.basename(dir)}: ${e.message}`);
+        }
+    }
+}
+
+// ============================================
 // 2. [DISABLED] ADVANCED AD BLOCKING ENGINE
 // ============================================
 // function setupAdvancedAdBlocker() {
@@ -766,6 +856,7 @@ app.on('ready', async () => {
 
     // Load extensions (optional)
     await loadAdvancedExtensions();
+    await loadUserExtensions(); // Load user-defined extensions
 
     // Inject advanced systems
     injectAdvancedSystems();
