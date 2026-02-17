@@ -430,28 +430,117 @@ async function createAdvancedWindow() {
         }
     });
 
+    // ============================================
+    // 3. SECURE AUTH WINDOW (CLEAN ENVIRONMENT)
+    // ============================================
+    let authWindow = null;
+
+    async function openAuthWindow(targetUrl) {
+        if (authWindow) {
+            authWindow.focus();
+            return;
+        }
+
+        console.log('🔐 Opening Secure Auth Window...');
+
+        // Use a separate partition to ensure NO extensions/scripts are loaded
+        const authSession = session.fromPartition('persist:auth_flow');
+
+        // Clean User Agent for Auth
+        const authUA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36';
+        authSession.setUserAgent(authUA);
+
+        authWindow = new BrowserWindow({
+            width: 500,
+            height: 700,
+            title: 'Sign In - Secure Flow',
+            icon: path.join(__dirname, 'icon.png'),
+            autoHideMenuBar: true,
+            webPreferences: {
+                partition: 'persist:auth_flow', // ISOLATED SESSION
+                nodeIntegration: false,
+                contextIsolation: true,
+                sandbox: true,
+                disableBlinkFeatures: 'AutomationControlled', // Critical
+                webSecurity: true
+            }
+        });
+
+        // Strip automation flags from Auth Window too
+        authWindow.webContents.setUserAgent(authUA);
+
+        authWindow.loadURL(targetUrl);
+
+        // Monitor for successful login (redirect to YouTube)
+        authWindow.webContents.on('did-navigate', async (event, url) => {
+            console.log('Auth Navigated:', url);
+
+            // If we land back on YouTube or Google Account home, we assume success
+            if (url.includes('youtube.com') || url.includes('myaccount.google.com')) {
+                console.log('✅ Login Detected! Syncing cookies...');
+                await syncCookies(authSession, session.defaultSession);
+
+                // Optional: Close auth window after short delay
+                setTimeout(() => {
+                    if (authWindow) {
+                        authWindow.close();
+                        authWindow = null;
+                    }
+                    // Reload main window to pick up new cookies
+                    if (mainWindow) mainWindow.reload();
+                }, 2000);
+            }
+        });
+
+        authWindow.on('closed', () => {
+            authWindow = null;
+        });
+    }
+
+    async function syncCookies(sourceSession, targetSession) {
+        try {
+            const cookies = await sourceSession.cookies.get({});
+            for (const cookie of cookies) {
+                const cookieObj = {
+                    url: `http${cookie.secure ? 's' : ''}://${cookie.domain.replace(/^\./, '')}${cookie.path}`,
+                    name: cookie.name,
+                    value: cookie.value,
+                    domain: cookie.domain,
+                    path: cookie.path,
+                    secure: cookie.secure,
+                    httpOnly: cookie.httpOnly,
+                    expirationDate: cookie.expirationDate
+                };
+                try {
+                    await targetSession.cookies.set(cookieObj);
+                } catch (err) {
+                    // Ignore specific cookie errors
+                }
+            }
+            console.log(`🍪 Synced ${cookies.length} cookies to Main Session`);
+        } catch (error) {
+            console.error('Cookie Sync Failed:', error);
+        }
+    }
+
+    // ... inside createWindow ...
+
     // Handle Window Open Requests (Popups & External Links)
     mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-        // ALLOW: Google Sign-In Popups (Internal)
-        if (url.startsWith('https://accounts.google.com') || url.startsWith('https://www.google.com/accounts')) {
-            return {
-                action: 'allow',
-                overrideBrowserWindowOptions: {
-                    autoHideMenuBar: true,
-                    webPreferences: {
-                        contextIsolation: true,
-                        nodeIntegration: false,
-                        sandbox: true,
-                        disableBlinkFeatures: 'AutomationControlled' // [FIX] Critical for Sign-In
-                    }
-                }
-            };
+        // ALLOW: Google Sign-In - INTERCEPT WITH SECURE WINDOW
+        if (url.startsWith('https://accounts.google.com') ||
+            url.startsWith('https://www.google.com/accounts') ||
+            url.includes('google.com/signin')) {
+
+            openAuthWindow(url);
+            return { action: 'deny' }; // We handle it manually
         }
 
         // DENY & OPEN EXTERNAL: Everything else (e.g. Links in description)
         shell.openExternal(url);
         return { action: 'deny' };
     });
+
 
     // [FIX] CSP & HEADER REMOVAL - Allow Inline Scripts & Fix Sign-In
     session.defaultSession.webRequest.onHeadersReceived(
