@@ -218,6 +218,75 @@ def get_all_browser_cookies(browser_name):
             
     return all_cookies
 
+def launch_stealth_browser():
+    """Launches an undetected Chrome instance for manual login."""
+    try:
+        import undetected_chromedriver as uc
+        import time
+    except ImportError:
+        return None
+
+    try:
+        options = uc.ChromeOptions()
+        options.add_argument("--disable-popup-blocking")
+        # useful for debugging, but in prod we might want it visible
+        # options.add_argument("--headless=new") 
+        
+        sys.stderr.write("LAUNCHING_BROWSER\n")
+        
+        # Initialize the driver
+        # [CLEAN LAUNCH STRATEGY]
+        # We rely 100% on undetected-chromedriver's binary patching.
+        # No extra flags, no extensions, no CDP spoofing.
+        # Just a pure, clean Chrome instance.
+        
+        driver = uc.Chrome(options=options, use_subprocess=True)
+
+        # Go to YouTube Login
+        driver.get("https://accounts.google.com/ServiceLogin?service=youtube")
+        
+        sys.stderr.write("WAITING_FOR_LOGIN\n")
+        
+        # Wait until we detect cookies for youtube.com
+        max_retries = 300 # 5 minutes timeout
+        found = False
+        captured_cookies = []
+        
+        for _ in range(max_retries):
+            if "youtube.com" in driver.current_url or "myaccount.google.com" in driver.current_url:
+                # Check for specific auth cookies
+                cookies = driver.get_cookies()
+                # fast check for SID/HSID
+                if any(c['name'] == 'HSID' for c in cookies if 'google' in c['domain'] or 'youtube' in c['domain']):
+                    captured_cookies = cookies
+                    found = True
+                    break
+            time.sleep(1)
+            
+        if found:
+            # Transform to our format
+            final_cookies = []
+            for c in captured_cookies:
+                final_cookies.append({
+                    "url": f"https://{c['domain'].lstrip('.')}{c['path']}",
+                    "domain": c['domain'],
+                    "name": c['name'],
+                    "value": c['value'],
+                    "path": c['path'],
+                    "secure": c.get('secure', True),
+                    "httpOnly": c.get('httpOnly', True),
+                    "expirationDate": c.get('expiry')
+                })
+            
+            driver.quit()
+            return final_cookies
+        
+        driver.quit()
+        return None
+        
+    except Exception as e:
+        return None
+
 if __name__ == "__main__":
     try:
         # Check dependencies first
@@ -227,15 +296,29 @@ if __name__ == "__main__":
             print(json.dumps({"error": "MISSING_DEPENDENCY", "message": "Please install pycryptodome: pip install pycryptodome"}))
             sys.exit(1)
 
-        # Try Chrome first, then Edge
+        # 1. Try System Extraction First (Silent)
         all_cookies = get_all_browser_cookies("Chrome")
         if not all_cookies:
             all_cookies = get_all_browser_cookies("Edge")
             
-        if not all_cookies:
-             print(json.dumps({"error": "NO_COOKIES", "message": "No valid YouTube/Google cookies found in Chrome or Edge (Checked all profiles)."}))
-        else:
+        if all_cookies:
              print(json.dumps(all_cookies))
+             sys.exit(0)
+
+        # 2. Fallback: Stealth Browser (Interactive)
+        # We only do this if specifically requested OR if we act as a "smart fallback"
+        # For now, let's just do it automatically if silent fails, 
+        # BUT we print a status message first so Electron knows what's happening.
+        
+        stealth_cookies = launch_stealth_browser()
+        
+        if stealth_cookies:
+            print(json.dumps(stealth_cookies))
+        else:
+            print(json.dumps({"error": "NO_COOKIES", "message": "Could not extract cookies seamlessly, and Stealth Browser login failed or was closed."}))
+
+    except Exception as e:
+        print(json.dumps({"error": "CRASH", "message": str(e)}))
 
     except Exception as e:
         print(json.dumps({"error": "CRASH", "message": str(e)}))

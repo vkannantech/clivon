@@ -581,7 +581,12 @@ async function createAdvancedWindow() {
                 command = `python "${pyScript}"`; // Run python script
             }
 
-            exec(command, async (error, stdout, stderr) => {
+            const options = {
+                maxBuffer: 1024 * 1024 * 10, // 10MB buffer
+                windowsHide: false // ensure we can see if console pops up (for debugging)
+            };
+
+            exec(command, options, async (error, stdout, stderr) => {
                 if (error) {
                     console.error(`exec error: ${error}`);
                     // Differentiate error message based on mode
