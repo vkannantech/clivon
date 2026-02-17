@@ -458,6 +458,7 @@ async function createAdvancedWindow() {
             autoHideMenuBar: true,
             webPreferences: {
                 partition: 'persist:auth_flow', // ISOLATED SESSION
+                preload: path.join(__dirname, 'auth-preload.js'), // [FIX] EXPLICIT CLEAN PRELOAD
                 nodeIntegration: false,
                 contextIsolation: true,
                 sandbox: true,
@@ -553,10 +554,28 @@ async function createAdvancedWindow() {
                 delete details.responseHeaders['x-frame-options'];
 
                 // [FIX] CROSS-ORIGIN SIGN-IN ISSUES
-                // Force allow cross-origin requests for auth resources
-                details.responseHeaders['access-control-allow-origin'] = ['*'];
+                // Dynamic Origin Reflection to support both YouTube and Google Auth
+                const origin = details.responseHeaders['access-control-allow-origin']?.[0] ||
+                    (details.referrer ? new URL(details.referrer).origin : null);
+
+                // Whitelist trusted origins for CORS
+                const allowedOrigins = [
+                    'https://www.youtube.com',
+                    'https://accounts.google.com',
+                    'https://myaccount.google.com',
+                    'https://www.google.com'
+                ];
+
+                if (origin && allowedOrigins.some(o => origin.includes(o))) {
+                    details.responseHeaders['access-control-allow-origin'] = [origin];
+                    details.responseHeaders['access-control-allow-credentials'] = ['true'];
+                } else {
+                    // Fallback for main YouTube app if origin is missing/undefined but referrer is valid
+                    details.responseHeaders['access-control-allow-origin'] = ['https://www.youtube.com'];
+                    details.responseHeaders['access-control-allow-credentials'] = ['true'];
+                }
+
                 details.responseHeaders['access-control-allow-headers'] = ['*'];
-                details.responseHeaders['access-control-allow-credentials'] = ['true'];
             }
             callback({ cancel: false, responseHeaders: details.responseHeaders });
         }
@@ -564,7 +583,21 @@ async function createAdvancedWindow() {
 
     // Handle In-App Navigation (Same Tab)
     mainWindow.webContents.on('will-navigate', (event, url) => {
-        const allowedDomains = ['youtube.com', 'googlevideo.com', 'accounts.google.com', 'google.com', 'gstatic.com'];
+        // [CRITICAL] INTERCEPT GOOGLE SIGN-IN STRICTLY
+        // Prevent Main Window from ever loading the dirty sign-in page
+        if (url.includes('accounts.google.com') ||
+            url.includes('google.com/accounts') ||
+            url.includes('google.com/signin') ||
+            url.includes('ServiceLogin')) {
+
+            console.log(`🔐 Intercepting Navigation to Auth: ${url}`);
+            event.preventDefault(); // STOP Main Window navigation
+            openAuthWindow(url);    // Open in Clean Window
+            return;
+        }
+
+        // Removed accounts.google.com from allowed list to enforce interception
+        const allowedDomains = ['youtube.com', 'googlevideo.com', 'google.com', 'gstatic.com'];
         const isAllowed = allowedDomains.some(domain => url.includes(domain));
 
         if (!isAllowed) {
