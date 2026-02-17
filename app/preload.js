@@ -18,6 +18,17 @@ try {
     Object.defineProperty(navigator, 'webdriver', {
         get: () => undefined
     });
+
+    // [FIX] Mock Plugins to pass "User is too new" / Bot checks
+    Object.defineProperty(navigator, 'plugins', {
+        get: () => [
+            { name: "PDF Viewer", filename: "internal-pdf-viewer", description: "Portable Document Format" },
+            { name: "Chrome PDF Viewer", filename: "internal-pdf-viewer", description: "Portable Document Format" },
+            { name: "Chromium PDF Viewer", filename: "internal-pdf-viewer", description: "Portable Document Format" },
+            { name: "Microsoft Edge PDF Viewer", filename: "internal-pdf-viewer", description: "Portable Document Format" },
+            { name: "WebKit built-in PDF", filename: "internal-pdf-viewer", description: "Portable Document Format" }
+        ]
+    });
 } catch (e) { }
 
 // [REMOVED] IMPORT C++ PORTED ENGINES

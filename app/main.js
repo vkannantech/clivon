@@ -29,7 +29,7 @@ const CONFIG = {
     // UPDATED: Use a recent, standard Chrome User Agent to pass Google Security Checks
     USER_AGENT: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36',
     BLOCKING_MODE: 'MULTI_LAYER_AGGRESSIVE',
-    AUTO_FULLSCREEN: true,
+    AUTO_FULLSCREEN: false,
     HARDWARE_ACCELERATION: true,
 
     // Multi-layer system settings
@@ -286,6 +286,15 @@ function setupNetworkBlockingLayer(ses) {
     ses.webRequest.onBeforeRequest({ urls: ['<all_urls>'] }, (details, callback) => {
         const url = details.url.toLowerCase();
 
+        // [FIX] CRITICAL: ALWAYS ALLOW AUTHENTICATION
+        // This must be the very first check to prevent Accidental Blocking
+        if (url.includes('accounts.google.com') ||
+            url.includes('myaccount.google.com') ||
+            url.includes('google.com/servicelogin') ||
+            url.includes('google.com/signin')) {
+            return callback({ cancel: false });
+        }
+
         // FIRST: Allow essential domains
         for (const essential of ESSENTIAL_WHITELIST) {
             if (url.includes(essential)) {
@@ -432,7 +441,8 @@ async function createAdvancedWindow() {
                     webPreferences: {
                         contextIsolation: true,
                         nodeIntegration: false,
-                        sandbox: true
+                        sandbox: true,
+                        disableBlinkFeatures: 'AutomationControlled' // [FIX] Critical for Sign-In
                     }
                 }
             };
@@ -451,7 +461,13 @@ async function createAdvancedWindow() {
                 // Nuke CSP to allow our aggressive script injections
                 delete details.responseHeaders['content-security-policy'];
                 delete details.responseHeaders['content-security-policy-report-only'];
-                delete details.responseHeaders['x-frame-options']; // Allow framing if needed
+                delete details.responseHeaders['x-frame-options'];
+
+                // [FIX] CROSS-ORIGIN SIGN-IN ISSUES
+                // Force allow cross-origin requests for auth resources
+                details.responseHeaders['access-control-allow-origin'] = ['*'];
+                details.responseHeaders['access-control-allow-headers'] = ['*'];
+                details.responseHeaders['access-control-allow-credentials'] = ['true'];
             }
             callback({ cancel: false, responseHeaders: details.responseHeaders });
         }
