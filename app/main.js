@@ -443,6 +443,20 @@ async function createAdvancedWindow() {
         return { action: 'deny' };
     });
 
+    // [FIX] CSP & HEADER REMOVAL - Allow Inline Scripts & Fix Sign-In
+    session.defaultSession.webRequest.onHeadersReceived(
+        { urls: ['*://*.youtube.com/*', '*://accounts.google.com/*', '*://*.google.com/*'] },
+        (details, callback) => {
+            if (details.responseHeaders) {
+                // Nuke CSP to allow our aggressive script injections
+                delete details.responseHeaders['content-security-policy'];
+                delete details.responseHeaders['content-security-policy-report-only'];
+                delete details.responseHeaders['x-frame-options']; // Allow framing if needed
+            }
+            callback({ cancel: false, responseHeaders: details.responseHeaders });
+        }
+    );
+
     // Handle In-App Navigation (Same Tab)
     mainWindow.webContents.on('will-navigate', (event, url) => {
         const allowedDomains = ['youtube.com', 'googlevideo.com', 'accounts.google.com', 'google.com', 'gstatic.com'];
