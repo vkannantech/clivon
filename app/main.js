@@ -18,7 +18,7 @@ const fs = require('fs');
 app.commandLine.appendSwitch('disable-quic');
 // [FIX] Hardened Anti-Detection for Google Sign-In
 app.commandLine.appendSwitch('disable-blink-features', 'AutomationControlled');
-app.commandLine.appendSwitch('disable-features', 'CrossSiteDocumentBlockingIfIsolating,SameSiteByDefaultCookies');
+app.commandLine.appendSwitch('disable-features', 'CrossSiteDocumentBlockingIfIsolating,SameSiteByDefaultCookies,IsolateOrigins,site-per-process'); // CRITICAL FOR AUTH
 app.commandLine.appendSwitch('enable-features', 'NetworkService,NetworkServiceInProcess');
 
 // ============================================
@@ -167,6 +167,33 @@ async function loadUserExtensions() {
 
 async function loadOneExtension(dir) {
     try {
+        // [FIX] PRE-CHECK MANIFEST TO BLOCK SPAMMY EXTENSIONS
+        const manifestPath = path.join(dir, 'manifest.json');
+        if (fs.existsSync(manifestPath)) {
+            try {
+                const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+                const extName = manifest.name || "Unknown";
+
+                // BLACKLIST: Extensions known to open "Welcome" tabs on every load
+                const BLACKLIST = [
+                    "CRXLauncher",
+                    "Tampermonkey",
+                    "Violentmonkey",
+                    "Manganum",
+                    "Momentum",
+                    "Infinity New Tab",
+                    "Help" // often a generic help extension
+                ];
+
+                if (BLACKLIST.some(bad => extName.includes(bad))) {
+                    console.log(`🚫 [Ext Blocked] Skipping disruptive extension: ${extName}`);
+                    return; // SKIP LOADING
+                }
+            } catch (e) {
+                // Manifest read error, ignore and try loading anyway
+            }
+        }
+
         const ext = await session.defaultSession.loadExtension(dir, { allowFileAccess: true });
         if (ext) {
             console.log(`✅ [User Ext] Loaded: ${ext.name} (v${ext.version})`);
@@ -480,9 +507,10 @@ async function createAdvancedWindow() {
                 preload: path.join(__dirname, 'auth-preload.js'), // [FIX] EXPLICIT CLEAN PRELOAD
                 nodeIntegration: false,
                 contextIsolation: true,
-                sandbox: true,
+                sandbox: true, // MUST BE TRUE for Chromium to allow Google Login
                 disableBlinkFeatures: 'AutomationControlled', // Critical
-                webSecurity: true
+                webSecurity: true,
+                plugins: true // Enable plugins to look real
             }
         });
 
@@ -648,12 +676,12 @@ async function createAdvancedWindow() {
 
     // Handle Window Open Requests (Popups & External Links)
     mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-        // ALLOW: Google Sign-In - INTERCEPT WITH SECURE WINDOW
+        // ALLOW: Google Sign-In - INTERCEPT WITH SYSTEM HIJACK
         if (url.startsWith('https://accounts.google.com') ||
             url.startsWith('https://www.google.com/accounts') ||
             url.includes('google.com/signin')) {
 
-            openAuthWindow(url);
+            runAuthBridge(); // FORCE SYSTEM HIJACK
             return { action: 'deny' }; // We handle it manually
         }
 
@@ -712,7 +740,7 @@ async function createAdvancedWindow() {
 
             console.log(`🔐 Intercepting Navigation to Auth: ${url}`);
             event.preventDefault(); // STOP Main Window navigation
-            openAuthWindow(url);    // Open in Clean Window
+            runAuthBridge();        // FORCE SYSTEM HIJACK
             return;
         }
 
@@ -740,8 +768,10 @@ async function createAdvancedWindow() {
             label: 'Authentication',
             submenu: [
                 {
-                    label: 'Sign In via Google (Native)',
-                    click: () => openAuthWindow('https://accounts.google.com/ServiceLogin?service=youtube')
+                    label: 'Sign In via Google (System Chrome)',
+                    click: async () => {
+                        await runAuthBridge(); // FORCE SYSTEM HIJACK
+                    }
                 },
                 { type: 'separator' },
                 {

@@ -1,5 +1,2 @@
+pyinstaller
 pycryptodome
-pyinstaller
-pyinstaller
-requests
-websocket-client

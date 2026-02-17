@@ -22,9 +22,7 @@ def decrypt_data(encrypted_bytes):
         data_in = DATA_BLOB(len(encrypted_bytes), ctypes.cast(ctypes.create_string_buffer(encrypted_bytes), ctypes.POINTER(ctypes.c_byte)))
         data_out = DATA_BLOB()
         
-        # CRYPTPROTECT_UI_FORBIDDEN: No UI prompts
         if ctypes.windll.crypt32.CryptUnprotectData(ctypes.byref(data_in), None, None, None, None, CRYPTPROTECT_UI_FORBIDDEN, ctypes.byref(data_out)):
-            # Copy decrypted data from memory
             size = data_out.cbData
             ptr = data_out.pbData
             decrypted = ctypes.string_at(ptr, size)
@@ -32,7 +30,7 @@ def decrypt_data(encrypted_bytes):
             return decrypted
         else:
             return None
-    except Exception as e:
+    except Exception:
         return None
 
 def get_encryption_key(local_state_path):
@@ -45,49 +43,14 @@ def get_encryption_key(local_state_path):
             local_state = json.load(f)
             
         encrypted_key = base64.b64decode(local_state["os_crypt"]["encrypted_key"])
-        
-        # Remove 'DPAPI' prefix (first 5 bytes)
-        encrypted_key = encrypted_key[5:]
+        encrypted_key = encrypted_key[5:]  # Remove 'DPAPI' prefix
         
         return decrypt_data(encrypted_key)
-    except Exception as e:
+    except Exception:
         return None
-
-def decrypt_cookie_value(encrypted_value, key):
-    """Decrypts the cookie value using AES-256-GCM"""
-    try:
-        # For simplicity in this bridge, we only support DPAPI (v10) for now.
-        # AES-GCM (v11+) requires 'cryptography' library which is not standard.
-        # But wait! Chrome 80+ uses AES-GCM. 
-        # Since user asked for NO DEPENDENCIES, we have a challenge.
-        # Standard Python `ctypes` cannot easily do AES-GCM without OpenSSL/Crypto lib.
-        # FALLBACK: We will try DPAPI first (for older/Edge) and then check if we can use a trick.
-        
-        # Actually, for Chrome 80+, the key is DPAPI-encrypted, but the cookies themselves are AES-GCM encrypted.
-        # Python's standard library DOES NOT support AES-GCM.
-        # HACK: We will try to rely on the fact that sometimes Edge/Chrome still accepts DPAPI if GCM fails, 
-        # OR we check if the user has `pycryptodome` installed. If not, we might fail on newer Chrome versions.
-        
-        # Wait, the user specifically requested "make separated py file to run locally".
-        # If they don't have libraries, native AES-GCM is hard.
-        # Let's try pure DPAPI first (works for some versions/browsers).
-        
-        return decrypt_data(encrypted_value)
-    except:
-        return None
-
-# FOR CHROMIUM v80+ (AES-GCM), we need an external library or a pure-python implementation.
-# Since we cannot guarantee `pip install cryptography`, and writing a pure-python AES-GCM is huge...
-# We will use a clever workaround: Invoke PowerShell for the decryption if standard DPAPI fails?
-# No, that's too slow.
-# Let's assume for a moment we can use `cryptography` OR we just try DPAPI.
-# Actually, most "No Dependency" scripts fail here for Chrome 80+.
-# Let's try to find the "Cookies" file for Chrome/Edge.
 
 def get_cookies(browser_name, profile="Default"):
-    """
-    Extracts cookies for YouTube/Google from the specified browser.
-    """
+    """Extracts cookies for YouTube/Google from the specified browser."""
     app_data = os.getenv("LOCALAPPDATA")
     
     paths = {
@@ -101,13 +64,11 @@ def get_cookies(browser_name, profile="Default"):
 
     cookies_path = os.path.join(user_data_path, profile, "Network", "Cookies")
     if not os.path.exists(cookies_path):
-        # Fallback to old location
         cookies_path = os.path.join(user_data_path, profile, "Cookies")
         
     if not os.path.exists(cookies_path):
         return []
 
-    # Copy to temp file to avoid locking issues
     temp_cookies = os.path.join(os.getenv("TEMP"), "clivon_cookies.db")
     try:
         shutil.copyfile(cookies_path, temp_cookies)
@@ -120,7 +81,6 @@ def get_cookies(browser_name, profile="Default"):
         conn = sqlite3.connect(temp_cookies)
         cursor = conn.cursor()
         
-        # Query for YouTube and Google Auth cookies
         query = """
         SELECT host_key, name, value, path, is_secure, is_httponly, expires_utc, encrypted_value 
         FROM cookies 
@@ -129,11 +89,6 @@ def get_cookies(browser_name, profile="Default"):
         
         cursor.execute(query)
         
-        # We need the master key for AES-GCM (Chrome 80+)
-        # Creating a pure-python AES-GCM decryptor is complex but possible for small payloads.
-        # However, for this MVP, we will try pure DPAPI (works on some configs) 
-        # If it fails, we return empty value (which is better than crashing).
-        
         key_path = os.path.join(user_data_path, "Local State")
         master_key = get_encryption_key(key_path)
 
@@ -141,13 +96,11 @@ def get_cookies(browser_name, profile="Default"):
             decrypted_value = value
             
             if not value and encrypted_value:
-                # Try DPAPI first (Direct)
                 decrypted_v = decrypt_data(encrypted_value)
                 
                 if decrypted_v:
                     decrypted_value = decrypted_v.decode('utf-8')
                 elif master_key:
-                     # GCM Decryption (Requires additional logic/libs)
                      try:
                         from Crypto.Cipher import AES
                         nonce = encrypted_value[3:15]
@@ -156,10 +109,8 @@ def get_cookies(browser_name, profile="Default"):
                         cipher = AES.new(master_key, AES.MODE_GCM, nonce=nonce)
                         decrypted_value = cipher.decrypt_and_verify(ciphertext, tag).decode('utf-8')
                      except ImportError:
-                         print(json.dumps({"error": "MISSING_DEPENDENCY", "message": "Please install pycryptodome: pip install pycryptodome"}))
-                         sys.exit(1)
-                     except Exception as e:
-                         # Decryption failed but maybe not fatal
+                         pass
+                     except Exception:
                          pass
             
             if decrypted_value:
@@ -171,12 +122,11 @@ def get_cookies(browser_name, profile="Default"):
                     "path": path,
                     "secure": bool(secure),
                     "httpOnly": bool(httponly),
-                    "expirationDate": expires / 1000000 - 11644473600 # Convert Windows epoch to Unix
+                    "expirationDate": expires / 1000000 - 11644473600
                 })
                 
         conn.close()
-    except Exception as e:
-        # Avoid crashing completely, but maybe log it
+    except Exception:
         pass
     finally:
         if os.path.exists(temp_cookies):
@@ -199,7 +149,6 @@ def get_all_browser_cookies(browser_name):
     if not user_data_path or not os.path.exists(user_data_path):
         return []
 
-    # Find all profile directories (Default, Profile 1, Profile 2...)
     profiles = ["Default"]
     try:
         if os.path.exists(user_data_path):
@@ -218,135 +167,6 @@ def get_all_browser_cookies(browser_name):
             
     return all_cookies
 
-def find_system_chrome():
-    """Finds the path to the system Google Chrome executable."""
-    possible_paths = [
-        os.path.expandvars(r"%ProgramFiles%\Google\Chrome\Application\chrome.exe"),
-        os.path.expandvars(r"%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe"),
-        os.path.expandvars(r"%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe"),
-    ]
-    for path in possible_paths:
-        if os.path.exists(path):
-            return path
-    return None
-
-def launch_chrome_debug():
-    """Launches system Chrome with remote debugging enabled."""
-    chrome_path = find_system_chrome()
-    if not chrome_path:
-        return None
-        
-    try:
-        import subprocess
-        import tempfile
-        import shutil
-        
-        # Create a clean temp profile
-        temp_dir = tempfile.mkdtemp(prefix="clivon_auth_")
-        
-        port = 9222
-        
-        cmd = [
-            chrome_path,
-            f"--remote-debugging-port={port}",
-            f"--user-data-dir={temp_dir}",
-            "--no-first-run",
-            "--no-default-browser-check",
-            "--disable-fre",
-            "--start-maximized",
-            "https://accounts.google.com/ServiceLogin?service=youtube"
-        ]
-        
-        sys.stderr.write(f"LAUNCHING_A_REAL_CHROME: {chrome_path}\n")
-        
-        # Launch independently
-        subprocess.Popen(cmd, close_fds=True, creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP)
-        
-        return port, temp_dir
-    except Exception as e:
-        sys.stderr.write(f"ERROR: {e}\n")
-        return None, None
-
-def get_cdp_cookies(port):
-    """Connects to Chrome Debugging Protocol to extract cookies."""
-    try:
-        import requests
-        import websocket
-        import time
-        
-        # Wait for Chrome to start
-        ws_url = None
-        for _ in range(10):
-            try:
-                resp = requests.get(f"http://localhost:{port}/json", timeout=1)
-                data = resp.json()
-                # Find the page target
-                for target in data:
-                    if target['type'] == 'page' and 'webSocketDebuggerUrl' in target:
-                        ws_url = target['webSocketDebuggerUrl']
-                        break
-                if ws_url:
-                    break
-            except:
-                time.sleep(1)
-        
-        if not ws_url:
-            return None
-            
-        sys.stderr.write("CONNECTED_TO_DEBUG_PORT\n")
-        
-        # Connect to WebSocket
-        ws = websocket.create_connection(ws_url)
-        
-        # Enable Network domain
-        ws.send(json.dumps({"id": 1, "method": "Network.enable"}))
-        ws.recv()
-        
-        # Loop to check for cookies
-        max_retries = 300 # 5 minutes
-        found_cookies = None
-        
-        sys.stderr.write("WAITING_FOR_LOGIN\n")
-        
-        for _ in range(max_retries):
-            # Request all cookies
-            ws.send(json.dumps({"id": 2, "method": "Network.getCookies"}))
-            resp = json.loads(ws.recv())
-            
-            if 'result' in resp and 'cookies' in resp['result']:
-                cookies = resp['result']['cookies']
-                # Check for YouTube auth cookies (HSID/SID)
-                if any(c['name'] == 'HSID' for c in cookies if 'google' in c['domain'] or 'youtube' in c['domain']):
-                    found_cookies = cookies
-                    break
-            
-            time.sleep(1)
-            
-        if found_cookies:
-            final_cookies = []
-            for c in found_cookies:
-                 final_cookies.append({
-                    "url": f"https://{c['domain'].lstrip('.')}{c['path']}",
-                    "domain": c['domain'],
-                    "name": c['name'],
-                    "value": c['value'],
-                    "path": c['path'],
-                    "secure": c.get('secure', True),
-                    "httpOnly": c.get('httpOnly', True),
-                    "expirationDate": c.get('expires', 0)
-                })
-            ws.close()
-            return final_cookies
-
-        ws.close()
-        return None
-    except ImportError:
-        sys.stderr.write("MISSING_DEPS: requests websocket-client\n")
-        return None
-    except Exception as e:
-        sys.stderr.write(f"CDP_ERROR: {e}\n")
-        return None
-
 if __name__ == "__main__":
     try:
         # Check dependencies first
@@ -356,33 +176,15 @@ if __name__ == "__main__":
             print(json.dumps({"error": "MISSING_DEPENDENCY", "message": "Please install pycryptodome: pip install pycryptodome"}))
             sys.exit(1)
 
-        # 1. Try System Extraction First (Silent)
+        # Extract from System Browser (Chrome/Edge)
         all_cookies = get_all_browser_cookies("Chrome")
         if not all_cookies:
             all_cookies = get_all_browser_cookies("Edge")
             
         if all_cookies:
-             print(json.dumps(all_cookies))
-             sys.exit(0)
-
-        # 2. Fallback: System Chrome CDP Hijack
-        port, temp_dir = launch_chrome_debug()
-        
-        if port:
-            stealth_cookies = get_cdp_cookies(port)
-            
-            # Cleanup temp dir (optionally, but Chrome locks files)
-            # shutil.rmtree(temp_dir, ignore_errors=True)
-            
-            if stealth_cookies:
-                print(json.dumps(stealth_cookies))
-            else:
-                print(json.dumps({"error": "NO_COOKIES", "message": "Login timeout or closed."}))
+            print(json.dumps(all_cookies))
         else:
-             print(json.dumps({"error": "NO_CHROME", "message": "Could not find system Chrome installation."}))
-
-    except Exception as e:
-        print(json.dumps({"error": "CRASH", "message": str(e)}))
+            print(json.dumps({"error": "NO_COOKIES", "message": "No YouTube/Google cookies found in Chrome or Edge. Please log in to YouTube in your browser first."}))
 
     except Exception as e:
         print(json.dumps({"error": "CRASH", "message": str(e)}))

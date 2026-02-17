@@ -2,10 +2,11 @@
 echo ===================================
 echo 🏗️  Building Auth Bridge Executable
 echo ===================================
+cd /d "%~dp0"
 
 echo.
 echo 📦 Installing PyInstaller...
-pip install pyinstaller pycryptodome requests websocket-client
+pip install pyinstaller pycryptodome
 if %errorlevel% neq 0 (
     echo ❌ Failed to install dependencies.
     pause
