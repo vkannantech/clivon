@@ -1,3 +1,17 @@
+// [FAIL-SAFE] PREVENT AD-SHIELD ON GOOGLE SIGN-IN PAGES
+if (window.location.hostname === 'accounts.google.com' || window.location.href.includes('google.com/signin') || window.location.href.includes('googleapis.com')) {
+    console.warn('⚠️ Google Sign-In Detected: Aborting Ad-Shield Loading for Safety');
+    // Ensure minimal stealth is still applied if auth-preload failed to load, but don't load ad-blockers
+    try {
+        Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+    } catch (e) { }
+    // We do NOT return here because we might need some basic polyfills, but we should skip the HEAVY stuff.
+    // However, for maximum safety, let's just EXIT entirely if we are in the wrong preload context.
+    if (!window.location.href.includes('youtube.com')) {
+        return;
+    }
+}
+
 const { contextBridge, ipcRenderer, webFrame } = require('electron');
 
 // [FIX] Trusted Types Policy for CSP Compliance

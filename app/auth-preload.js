@@ -1,124 +1,79 @@
 /**
- * 🔐 CLIVON STEALTH AUTH ENGINE V3.0
- * Maximum Google Sign-In Compatibility
- * Passes ALL Google bot/automation detection checks
+ * 🔐 CLIVON NUCLEAR AUTH ENGINE V5.0 (PRELOAD ADAPTATION)
+ * Extracted Stealth Mechanisms for Maximum Google Compatibility
  */
 
-const { contextBridge } = require('electron');
-
-(function stealthAuthEngine() {
+(function nuclearStealth() {
     'use strict';
 
     try {
+        console.log('☢️ Engaging Nuclear Stealth Protocols...');
 
         // ============================================================
-        // LAYER 1: NAVIGATOR STEALTH - Remove ALL Automation Signals
+        // LAYER 1: BROWSER FINGERPRINT ERASURE
         // ============================================================
-
-        // 1A. Kill WebDriver flag (most important)
-        Object.defineProperty(navigator, 'webdriver', {
-            get: () => undefined,
-            configurable: true
-        });
-
-        // 1B. Mock realistic plugins (Google checks this for "User is too new")
-        const mockPlugins = [
-            { name: 'PDF Viewer', filename: 'internal-pdf-viewer', description: 'Portable Document Format', length: 1 },
-            { name: 'Chrome PDF Viewer', filename: 'internal-pdf-viewer', description: 'Portable Document Format', length: 1 },
-            { name: 'Chromium PDF Viewer', filename: 'internal-pdf-viewer', description: 'Portable Document Format', length: 1 },
-            { name: 'Microsoft Edge PDF Viewer', filename: 'internal-pdf-viewer', description: 'Portable Document Format', length: 1 },
-            { name: 'WebKit built-in PDF', filename: 'internal-pdf-viewer', description: 'Portable Document Format', length: 1 },
+        const navigatorProperties = [
+            'webdriver', 'webdriver_script_fn', 'driver_evaluate', 'webdriver_evaluate',
+            'selenium_evaluate', 'fxdriver_evaluate', 'driver_unwrapped', 'webdriver_unwrapped',
+            'selenium_unwrapped', 'fxdriver_unwrapped', '_Selenium_IDE_Recorder', '_selenium',
+            'calledSelenium', '$cdc_asdjflasutopfhvcZLmcfl_', '$chrome_asyncScriptInfo',
+            '__$webdriverAsyncExecutor', '__lastWatirAlert', '__lastWatirConfirm', '__lastWatirPrompt'
         ];
 
-        // Build a proper PluginArray-like object
+        navigatorProperties.forEach(prop => {
+            try {
+                delete Object.getPrototypeOf(navigator)[prop];
+                delete navigator[prop];
+                Object.defineProperty(navigator, prop, { get: () => undefined, configurable: true });
+                delete window[prop];
+                delete document[prop];
+            } catch (e) { }
+        });
+
+        // ============================================================
+        // LAYER 2: ADVANCED PLUGIN MASKING
+        // ============================================================
+        const realisticPlugins = [
+            { name: "PDF Viewer", filename: "internal-pdf-viewer", description: "Portable Document Format", version: "124.0.6367.91" },
+            { name: "Chrome PDF Viewer", filename: "internal-pdf-viewer", description: "Portable Document Format", version: "124.0.6367.91" },
+            { name: "Chromium PDF Viewer", filename: "internal-pdf-viewer", description: "Portable Document Format", version: "124.0.6367.91" },
+            { name: "Microsoft Edge PDF Viewer", filename: "internal-pdf-viewer", description: "Portable Document Format", version: "124.0.6367.91" },
+            { name: "WebKit built-in PDF", filename: "internal-pdf-viewer", description: "Portable Document Format", version: "124.0.6367.91" }
+        ];
+
         const pluginArray = Object.create(PluginArray.prototype);
-        mockPlugins.forEach((p, i) => {
+        const mimeArray = Object.create(MimeTypeArray.prototype);
+
+        realisticPlugins.forEach((p, i) => {
             const plugin = Object.create(Plugin.prototype);
             Object.defineProperties(plugin, {
                 name: { get: () => p.name },
                 filename: { get: () => p.filename },
                 description: { get: () => p.description },
-                length: { get: () => p.length }
+                length: { get: () => 1 },
+                item: { value: () => mimeArray[0] },
+                namedItem: { value: () => mimeArray[0] }
             });
             Object.defineProperty(pluginArray, i, { get: () => plugin });
             Object.defineProperty(pluginArray, p.name, { get: () => plugin });
         });
-        Object.defineProperty(pluginArray, 'length', { get: () => mockPlugins.length });
+        Object.defineProperty(pluginArray, 'length', { get: () => realisticPlugins.length });
         Object.defineProperty(pluginArray, 'item', { value: (i) => pluginArray[i] });
         Object.defineProperty(pluginArray, 'namedItem', { value: (n) => pluginArray[n] });
         Object.defineProperty(pluginArray, 'refresh', { value: () => { } });
 
-        Object.defineProperty(navigator, 'plugins', {
-            get: () => pluginArray,
-            configurable: true
-        });
-
-        // 1C. Mock MimeTypes
-        const mockMimes = ['application/pdf', 'text/pdf'];
-        const mimeArray = Object.create(MimeTypeArray.prototype);
-        mockMimes.forEach((type, i) => {
-            const mime = Object.create(MimeType.prototype);
-            Object.defineProperties(mime, {
-                type: { get: () => type },
-                description: { get: () => 'Portable Document Format' },
-                suffixes: { get: () => 'pdf' }
-            });
-            Object.defineProperty(mimeArray, i, { get: () => mime });
-            Object.defineProperty(mimeArray, type, { get: () => mime });
-        });
-        Object.defineProperty(mimeArray, 'length', { get: () => mockMimes.length });
-        Object.defineProperty(navigator, 'mimeTypes', {
-            get: () => mimeArray,
-            configurable: true
-        });
-
-        // 1D. Realistic language settings
-        Object.defineProperty(navigator, 'languages', {
-            get: () => ['en-US', 'en'],
-            configurable: true
-        });
-
-        // 1E. Concurrency (real CPUs)
-        Object.defineProperty(navigator, 'hardwareConcurrency', {
-            get: () => 8,
-            configurable: true
-        });
-
-        // 1F. Device memory
-        Object.defineProperty(navigator, 'deviceMemory', {
-            get: () => 8,
-            configurable: true
-        });
-
-        // 1G. Max touch points (desktop = 0)
-        Object.defineProperty(navigator, 'maxTouchPoints', {
-            get: () => 0,
-            configurable: true
-        });
-
-        // 1H. Platform
-        Object.defineProperty(navigator, 'platform', {
-            get: () => 'Win32',
-            configurable: true
-        });
-
-        // 1I. Vendor
-        Object.defineProperty(navigator, 'vendor', {
-            get: () => 'Google Inc.',
-            configurable: true
-        });
-
-        // 1J. AppVersion
-        Object.defineProperty(navigator, 'appVersion', {
-            get: () => '5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36',
-            configurable: true
-        });
+        Object.defineProperty(navigator, 'plugins', { get: () => pluginArray, configurable: true });
 
         // ============================================================
-        // LAYER 2: CHROME OBJECT - Full Mock
-        // Google checks window.chrome extensively
+        // LAYER 3: HARDWARE CONCURRENCY & MEMORY SPOOFING
         // ============================================================
+        Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 8, configurable: true });
+        Object.defineProperty(navigator, 'deviceMemory', { get: () => 8, configurable: true });
+        Object.defineProperty(navigator, 'maxTouchPoints', { get: () => 0, configurable: true });
 
+        // ============================================================
+        // LAYER 4: CHROME RUNTIME MOCK
+        // ============================================================
         const mockChrome = {
             app: {
                 isInstalled: false,
@@ -130,41 +85,15 @@ const { contextBridge } = require('electron');
                 runningState: () => { }
             },
             runtime: {
-                OnInstalledReason: {
-                    CHROME_UPDATE: 'chrome_update',
-                    INSTALL: 'install',
-                    SHARED_MODULE_UPDATE: 'shared_module_update',
-                    UPDATE: 'update'
-                },
-                OnRestartRequiredReason: {
-                    APP_UPDATE: 'app_update',
-                    OS_UPDATE: 'os_update',
-                    PERIODIC: 'periodic'
-                },
-                PlatformArch: {
-                    ARM: 'arm', ARM64: 'arm64',
-                    MIPS: 'mips', MIPS64: 'mips64',
-                    X86_32: 'x86-32', X86_64: 'x86-64'
-                },
-                PlatformOs: {
-                    ANDROID: 'android', CROS: 'cros',
-                    LINUX: 'linux', MAC: 'mac',
-                    OPENBSD: 'openbsd', WIN: 'win'
-                },
-                RequestUpdateCheckStatus: {
-                    NO_UPDATE: 'no_update',
-                    THROTTLED: 'throttled',
-                    UPDATE_AVAILABLE: 'update_available'
-                },
+                OnInstalledReason: { CHROME_UPDATE: 'chrome_update', INSTALL: 'install', SHARED_MODULE_UPDATE: 'shared_module_update', UPDATE: 'update' },
+                OnRestartRequiredReason: { APP_UPDATE: 'app_update', OS_UPDATE: 'os_update', PERIODIC: 'periodic' },
+                PlatformArch: { ARM: 'arm', ARM64: 'arm64', MIPS: 'mips', MIPS64: 'mips64', X86_32: 'x86-32', X86_64: 'x86-64' },
+                PlatformOs: { ANDROID: 'android', CROS: 'cros', LINUX: 'linux', MAC: 'mac', OPENBSD: 'openbsd', WIN: 'win' },
+                RequestUpdateCheckStatus: { NO_UPDATE: 'no_update', THROTTLED: 'throttled', UPDATE_AVAILABLE: 'update_available' },
                 connect: () => { },
                 sendMessage: () => { }
             },
-            csi: () => ({
-                onloadT: Date.now(),
-                pageT: Math.floor(Math.random() * 3000) + 500,
-                startE: Date.now() - 5000,
-                tran: 15
-            }),
+            csi: () => ({ onloadT: Date.now(), pageT: Math.floor(Math.random() * 3000) + 500, startE: Date.now() - 5000, tran: 15 }),
             loadTimes: () => ({
                 commitLoadTime: Date.now() / 1000 - 1,
                 connectionInfo: 'h2',
@@ -182,175 +111,50 @@ const { contextBridge } = require('electron');
             })
         };
 
-        // Safely assign chrome object
         try {
             if (!window.chrome) {
                 window.chrome = mockChrome;
             } else {
-                // Merge missing keys
                 Object.keys(mockChrome).forEach(key => {
-                    if (!window.chrome[key]) {
-                        window.chrome[key] = mockChrome[key];
-                    }
+                    if (!window.chrome[key]) window.chrome[key] = mockChrome[key];
                 });
             }
         } catch (e) { }
 
         // ============================================================
-        // LAYER 3: PERMISSION API - Fake real browser permissions
-        // Google uses this to detect headless/automation
+        // LAYER 5: WEBGL FINGERPRINT PROTECTION
         // ============================================================
-
-        const originalQuery = window.navigator.permissions?.query;
-        if (originalQuery) {
-            window.navigator.permissions.query = function (parameters) {
-                if (parameters.name === 'notifications') {
-                    return Promise.resolve({ state: Notification.permission, onchange: null });
-                }
-                if (parameters.name === 'clipboard-read' || parameters.name === 'clipboard-write') {
-                    return Promise.resolve({ state: 'granted', onchange: null });
-                }
-                return originalQuery.call(this, parameters);
-            };
-        }
-
-        // ============================================================
-        // LAYER 4: WEBGL FINGERPRINT - Spoof GPU info
-        // Headless Chrome has different WebGL renderer
-        // ============================================================
-
         try {
             const getParameterProxyHandler = {
                 apply: function (target, thisArg, args) {
                     const param = args[0];
-                    const UNMASKED_VENDOR_WEBGL = 0x9245;
-                    const UNMASKED_RENDERER_WEBGL = 0x9246;
-
-                    if (param === UNMASKED_VENDOR_WEBGL) return 'Google Inc. (NVIDIA)';
-                    if (param === UNMASKED_RENDERER_WEBGL) return 'ANGLE (NVIDIA, NVIDIA GeForce GTX 1060 Direct3D11 vs_5_0 ps_5_0, D3D11)';
+                    // UNMASKED_VENDOR_WEBGL = 37445, UNMASKED_RENDERER_WEBGL = 37446
+                    if (param === 37445) return 'Google Inc. (NVIDIA)';
+                    if (param === 37446) return 'ANGLE (NVIDIA, NVIDIA GeForce GTX 1060 Direct3D11 vs_5_0 ps_5_0, D3D11)';
                     return target.apply(thisArg, args);
                 }
             };
-
-            const WebGLRenderingContextProto = WebGLRenderingContext.prototype;
-            WebGLRenderingContextProto.getParameter = new Proxy(
-                WebGLRenderingContextProto.getParameter,
-                getParameterProxyHandler
-            );
-        } catch (e) { }
-
-        // ============================================================
-        // LAYER 5: CANVAS FINGERPRINT - Add subtle noise
-        // Prevents bot detection via canvas hash matching
-        // ============================================================
-
-        try {
-            const toDataURL = HTMLCanvasElement.prototype.toDataURL;
-            HTMLCanvasElement.prototype.toDataURL = function (type, ...args) {
-                const ctx = this.getContext('2d');
-                if (ctx) {
-                    const imageData = ctx.getImageData(0, 0, this.width || 1, this.height || 1);
-                    // Add imperceptible noise (1 pixel value ±1)
-                    if (imageData.data.length > 4) {
-                        imageData.data[0] = imageData.data[0] ^ 1;
-                        ctx.putImageData(imageData, 0, 0);
-                    }
-                }
-                return toDataURL.call(this, type, ...args);
-            };
-        } catch (e) { }
-
-        // ============================================================
-        // LAYER 6: TIMING STEALTH - Humanize event timing
-        // Bots have perfectly consistent timing — humans don't
-        // ============================================================
-
-        // Slightly randomize Date.now() to appear human
-        const _DateNow = Date.now.bind(Date);
-        Date.now = function () {
-            return _DateNow() + Math.floor(Math.random() * 3);
-        };
-
-        // ============================================================
-        // LAYER 7: SCREEN & WINDOW - Match real Chrome values
-        // ============================================================
-
-        try {
-            Object.defineProperty(screen, 'colorDepth', { get: () => 24, configurable: true });
-            Object.defineProperty(screen, 'pixelDepth', { get: () => 24, configurable: true });
-        } catch (e) { }
-
-        // ============================================================
-        // LAYER 8: AUTOMATION STRING REMOVAL
-        // Remove ALL traces of Electron/automation from window
-        // ============================================================
-
-        const automationStrings = [
-            '__webdriver_script_fn',
-            '__driver_evaluate',
-            '__webdriver_evaluate',
-            '__selenium_evaluate',
-            '__fxdriver_evaluate',
-            '__driver_unwrapped',
-            '__webdriver_unwrapped',
-            '__selenium_unwrapped',
-            '__fxdriver_unwrapped',
-            '_Selenium_IDE_Recorder',
-            '_selenium',
-            'calledSelenium',
-            '$cdc_asdjflasutopfhvcZLmcfl_',
-            '$chrome_asyncScriptInfo',
-            '__$webdriverAsyncExecutor',
-            '__lastWatirAlert',
-            '__lastWatirConfirm',
-            '__lastWatirPrompt',
-        ];
-
-        automationStrings.forEach(str => {
-            try {
-                if (window[str]) delete window[str];
-                Object.defineProperty(window, str, {
-                    get: () => undefined,
-                    configurable: true
-                });
-            } catch (e) { }
-        });
-
-        // ============================================================
-        // LAYER 9: ERROR STACK STEALTH
-        // Electron shows in error stacks — mask it
-        // ============================================================
-
-        const _Error = Error;
-        window.Error = function (...args) {
-            const err = new _Error(...args);
-            if (err.stack) {
-                err.stack = err.stack
-                    .replace(/\s+at .*(electron|preload|node_modules).*/gi, '')
-                    .replace(/Electron\//gi, 'Chrome/')
-                    .trim();
+            const WebGLProto = WebGLRenderingContext.prototype;
+            if (WebGLProto.getParameter) {
+                WebGLProto.getParameter = new Proxy(WebGLProto.getParameter, getParameterProxyHandler);
             }
-            return err;
-        };
-        Object.setPrototypeOf(window.Error, _Error);
-        window.Error.prototype = _Error.prototype;
+        } catch (e) { }
 
         // ============================================================
-        // LAYER 10: EXPOSE SAFE APIs VIA contextBridge
+        // LAYER 6: PERMISSIONS API MOCK
         // ============================================================
+        if (navigator.permissions && navigator.permissions.query) {
+            const originalQuery = navigator.permissions.query;
+            navigator.permissions.query = function (parameters) {
+                if (parameters.name === 'notifications') return Promise.resolve({ state: Notification.permission, onchange: null });
+                if (parameters.name === 'clipboard-read' || parameters.name === 'clipboard-write') return Promise.resolve({ state: 'granted', onchange: null });
+                return originalQuery.call(this, parameters);
+            };
+        }
 
-        contextBridge.exposeInMainWorld('__clivonAuth', {
-            version: '3.0',
-            ready: true,
-            platform: 'Win32',
-            // Safe ping for renderer to confirm preload loaded
-            ping: () => 'pong'
-        });
+        console.log('✅ Nuclear Stealth Protocols Active');
 
-        console.log('🔐 [Clivon Auth Engine v3.0] All 10 layers active — stealth mode engaged');
-
-    } catch (globalErr) {
-        console.error('❌ [Clivon Auth Engine] Critical failure:', globalErr);
+    } catch (e) {
+        console.error('☢️ Nuclear Stealth Init Failed:', e);
     }
-
 })();
