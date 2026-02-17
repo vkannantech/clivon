@@ -187,6 +187,37 @@ def get_cookies(browser_name, profile="Default"):
 
     return extracted_cookies
 
+def get_all_browser_cookies(browser_name):
+    """Scans ALL profiles for the given browser."""
+    app_data = os.getenv("LOCALAPPDATA")
+    paths = {
+        "Chrome": os.path.join(app_data, "Google", "Chrome", "User Data"),
+        "Edge": os.path.join(app_data, "Microsoft", "Edge", "User Data"),
+    }
+    
+    user_data_path = paths.get(browser_name)
+    if not user_data_path or not os.path.exists(user_data_path):
+        return []
+
+    # Find all profile directories (Default, Profile 1, Profile 2...)
+    profiles = ["Default"]
+    try:
+        if os.path.exists(user_data_path):
+            for item in os.listdir(user_data_path):
+                if item.startswith("Profile ") and os.path.isdir(os.path.join(user_data_path, item)):
+                    profiles.append(item)
+    except:
+        pass
+
+    all_cookies = []
+    
+    for profile in profiles:
+        cookies = get_cookies(browser_name, profile)
+        if cookies:
+            all_cookies.extend(cookies)
+            
+    return all_cookies
+
 if __name__ == "__main__":
     try:
         # Check dependencies first
@@ -197,12 +228,12 @@ if __name__ == "__main__":
             sys.exit(1)
 
         # Try Chrome first, then Edge
-        all_cookies = get_cookies("Chrome")
+        all_cookies = get_all_browser_cookies("Chrome")
         if not all_cookies:
-            all_cookies = get_cookies("Edge")
+            all_cookies = get_all_browser_cookies("Edge")
             
         if not all_cookies:
-             print(json.dumps({"error": "NO_COOKIES", "message": "No valid YouTube/Google cookies found in Chrome or Edge."}))
+             print(json.dumps({"error": "NO_COOKIES", "message": "No valid YouTube/Google cookies found in Chrome or Edge (Checked all profiles)."}))
         else:
              print(json.dumps(all_cookies))
 
