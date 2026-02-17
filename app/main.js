@@ -477,19 +477,27 @@ async function createAdvancedWindow() {
             console.log('Auth Navigated:', url);
 
             // If we land back on YouTube or Google Account home, we assume success
-            if (url.includes('youtube.com') || url.includes('myaccount.google.com')) {
-                console.log('✅ Login Detected! Syncing cookies...');
-                await syncCookies(authSession, session.defaultSession);
+            // [FIX] Strict Hostname Check to prevent false positives from login URL parameters
+            try {
+                const urlObj = new URL(url);
+                if (urlObj.hostname === 'www.youtube.com' ||
+                    urlObj.hostname === 'm.youtube.com' ||
+                    urlObj.hostname === 'myaccount.google.com') {
+                    console.log('✅ Login Detected! Syncing cookies...');
+                    await syncCookies(authSession, session.defaultSession);
 
-                // Optional: Close auth window after short delay
-                setTimeout(() => {
-                    if (authWindow) {
-                        authWindow.close();
-                        authWindow = null;
-                    }
-                    // Reload main window to pick up new cookies
-                    if (mainWindow) mainWindow.reload();
-                }, 2000);
+                    // Optional: Close auth window after short delay
+                    setTimeout(() => {
+                        if (authWindow) {
+                            authWindow.close();
+                            authWindow = null;
+                        }
+                        // Reload main window to pick up new cookies
+                        if (mainWindow) mainWindow.reload();
+                    }, 2000);
+                }
+            } catch (e) {
+                console.error('Auth Nav Error:', e);
             }
         });
 
