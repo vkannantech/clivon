@@ -446,9 +446,27 @@ async function createAdvancedWindow() {
         // Use a separate partition to ensure NO extensions/scripts are loaded
         const authSession = session.fromPartition('persist:auth_flow');
 
+        // [FIX] NUCLEAR WIPE: Clear all data from previous failed attempts
+        console.log('☢️ Nuking Auth Session Data...');
+        await authSession.clearStorageData();
+        await authSession.clearCache();
+        console.log('✅ Auth Session Cleaned');
+
         // Clean User Agent for Auth
         const authUA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36';
         authSession.setUserAgent(authUA);
+
+        // [FIX] ULTIMATE STEALTH: Spoof Client Hints to remove "Electron" brand
+        authSession.webRequest.onBeforeSendHeaders((details, callback) => {
+            const headers = details.requestHeaders;
+
+            // Force Chrome Branding (Matches User Agent)
+            headers['sec-ch-ua'] = '"Chromium";v="129", "Google Chrome";v="129", "Not-A.Brand";v="99"';
+            headers['sec-ch-ua-mobile'] = '?0';
+            headers['sec-ch-ua-platform'] = '"Windows"';
+
+            callback({ requestHeaders: headers });
+        });
 
         authWindow = new BrowserWindow({
             width: 500,
@@ -470,7 +488,10 @@ async function createAdvancedWindow() {
         // Strip automation flags from Auth Window too
         authWindow.webContents.setUserAgent(authUA);
 
-        authWindow.loadURL(targetUrl);
+        // [FIX] REFERRER SPOOF: fake coming from YouTube to avoid direct-access blocks
+        authWindow.loadURL(targetUrl, {
+            httpReferrer: 'https://www.youtube.com/'
+        });
 
         // Monitor for successful login (redirect to YouTube)
         authWindow.webContents.on('did-navigate', async (event, url) => {
