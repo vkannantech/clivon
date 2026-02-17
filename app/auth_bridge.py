@@ -218,56 +218,114 @@ def get_all_browser_cookies(browser_name):
             
     return all_cookies
 
-def launch_stealth_browser():
-    """Launches an undetected Chrome instance for manual login."""
-    try:
-        import undetected_chromedriver as uc
-        import time
-    except ImportError:
+def find_system_chrome():
+    """Finds the path to the system Google Chrome executable."""
+    possible_paths = [
+        os.path.expandvars(r"%ProgramFiles%\Google\Chrome\Application\chrome.exe"),
+        os.path.expandvars(r"%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe"),
+        os.path.expandvars(r"%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe"),
+    ]
+    for path in possible_paths:
+        if os.path.exists(path):
+            return path
+    return None
+
+def launch_chrome_debug():
+    """Launches system Chrome with remote debugging enabled."""
+    chrome_path = find_system_chrome()
+    if not chrome_path:
         return None
-
+        
     try:
-        options = uc.ChromeOptions()
-        options.add_argument("--disable-popup-blocking")
-        # useful for debugging, but in prod we might want it visible
-        # options.add_argument("--headless=new") 
+        import subprocess
+        import tempfile
+        import shutil
         
-        sys.stderr.write("LAUNCHING_BROWSER\n")
+        # Create a clean temp profile
+        temp_dir = tempfile.mkdtemp(prefix="clivon_auth_")
         
-        # Initialize the driver
-        # [CLEAN LAUNCH STRATEGY]
-        # We rely 100% on undetected-chromedriver's binary patching.
-        # No extra flags, no extensions, no CDP spoofing.
-        # Just a pure, clean Chrome instance.
+        port = 9222
         
-        driver = uc.Chrome(options=options, use_subprocess=True)
+        cmd = [
+            chrome_path,
+            f"--remote-debugging-port={port}",
+            f"--user-data-dir={temp_dir}",
+            "--no-first-run",
+            "--no-default-browser-check",
+            "--disable-fre",
+            "--start-maximized",
+            "https://accounts.google.com/ServiceLogin?service=youtube"
+        ]
+        
+        sys.stderr.write(f"LAUNCHING_A_REAL_CHROME: {chrome_path}\n")
+        
+        # Launch independently
+        subprocess.Popen(cmd, close_fds=True, creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP)
+        
+        return port, temp_dir
+    except Exception as e:
+        sys.stderr.write(f"ERROR: {e}\n")
+        return None, None
 
-        # Go to YouTube Login
-        driver.get("https://accounts.google.com/ServiceLogin?service=youtube")
+def get_cdp_cookies(port):
+    """Connects to Chrome Debugging Protocol to extract cookies."""
+    try:
+        import requests
+        import websocket
+        import time
+        
+        # Wait for Chrome to start
+        ws_url = None
+        for _ in range(10):
+            try:
+                resp = requests.get(f"http://localhost:{port}/json", timeout=1)
+                data = resp.json()
+                # Find the page target
+                for target in data:
+                    if target['type'] == 'page' and 'webSocketDebuggerUrl' in target:
+                        ws_url = target['webSocketDebuggerUrl']
+                        break
+                if ws_url:
+                    break
+            except:
+                time.sleep(1)
+        
+        if not ws_url:
+            return None
+            
+        sys.stderr.write("CONNECTED_TO_DEBUG_PORT\n")
+        
+        # Connect to WebSocket
+        ws = websocket.create_connection(ws_url)
+        
+        # Enable Network domain
+        ws.send(json.dumps({"id": 1, "method": "Network.enable"}))
+        ws.recv()
+        
+        # Loop to check for cookies
+        max_retries = 300 # 5 minutes
+        found_cookies = None
         
         sys.stderr.write("WAITING_FOR_LOGIN\n")
         
-        # Wait until we detect cookies for youtube.com
-        max_retries = 300 # 5 minutes timeout
-        found = False
-        captured_cookies = []
-        
         for _ in range(max_retries):
-            if "youtube.com" in driver.current_url or "myaccount.google.com" in driver.current_url:
-                # Check for specific auth cookies
-                cookies = driver.get_cookies()
-                # fast check for SID/HSID
+            # Request all cookies
+            ws.send(json.dumps({"id": 2, "method": "Network.getCookies"}))
+            resp = json.loads(ws.recv())
+            
+            if 'result' in resp and 'cookies' in resp['result']:
+                cookies = resp['result']['cookies']
+                # Check for YouTube auth cookies (HSID/SID)
                 if any(c['name'] == 'HSID' for c in cookies if 'google' in c['domain'] or 'youtube' in c['domain']):
-                    captured_cookies = cookies
-                    found = True
+                    found_cookies = cookies
                     break
+            
             time.sleep(1)
             
-        if found:
-            # Transform to our format
+        if found_cookies:
             final_cookies = []
-            for c in captured_cookies:
-                final_cookies.append({
+            for c in found_cookies:
+                 final_cookies.append({
                     "url": f"https://{c['domain'].lstrip('.')}{c['path']}",
                     "domain": c['domain'],
                     "name": c['name'],
@@ -275,16 +333,18 @@ def launch_stealth_browser():
                     "path": c['path'],
                     "secure": c.get('secure', True),
                     "httpOnly": c.get('httpOnly', True),
-                    "expirationDate": c.get('expiry')
+                    "expirationDate": c.get('expires', 0)
                 })
-            
-            driver.quit()
+            ws.close()
             return final_cookies
-        
-        driver.quit()
+
+        ws.close()
         return None
-        
+    except ImportError:
+        sys.stderr.write("MISSING_DEPS: requests websocket-client\n")
+        return None
     except Exception as e:
+        sys.stderr.write(f"CDP_ERROR: {e}\n")
         return None
 
 if __name__ == "__main__":
@@ -305,17 +365,21 @@ if __name__ == "__main__":
              print(json.dumps(all_cookies))
              sys.exit(0)
 
-        # 2. Fallback: Stealth Browser (Interactive)
-        # We only do this if specifically requested OR if we act as a "smart fallback"
-        # For now, let's just do it automatically if silent fails, 
-        # BUT we print a status message first so Electron knows what's happening.
+        # 2. Fallback: System Chrome CDP Hijack
+        port, temp_dir = launch_chrome_debug()
         
-        stealth_cookies = launch_stealth_browser()
-        
-        if stealth_cookies:
-            print(json.dumps(stealth_cookies))
+        if port:
+            stealth_cookies = get_cdp_cookies(port)
+            
+            # Cleanup temp dir (optionally, but Chrome locks files)
+            # shutil.rmtree(temp_dir, ignore_errors=True)
+            
+            if stealth_cookies:
+                print(json.dumps(stealth_cookies))
+            else:
+                print(json.dumps({"error": "NO_COOKIES", "message": "Login timeout or closed."}))
         else:
-            print(json.dumps({"error": "NO_COOKIES", "message": "Could not extract cookies seamlessly, and Stealth Browser login failed or was closed."}))
+             print(json.dumps({"error": "NO_CHROME", "message": "Could not find system Chrome installation."}))
 
     except Exception as e:
         print(json.dumps({"error": "CRASH", "message": str(e)}))

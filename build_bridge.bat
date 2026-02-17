@@ -5,7 +5,7 @@ echo ===================================
 
 echo.
 echo 📦 Installing PyInstaller...
-pip install pyinstaller pycryptodome undetected-chromedriver
+pip install pyinstaller pycryptodome requests websocket-client
 if %errorlevel% neq 0 (
     echo ❌ Failed to install dependencies.
     pause
