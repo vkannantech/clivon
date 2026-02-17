@@ -23,6 +23,18 @@ jobs:
         cache: 'npm'
         cache-dependency-path: app/package-lock.json
 
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Build Auth Bridge
+      run: |
+        pip install pyinstaller pycryptodome
+        pyinstaller --onefile --noconsole --name auth_bridge auth_bridge.py
+        New-Item -ItemType Directory -Force -Path bin
+        Move-Item -Path dist\auth_bridge.exe -Destination bin\auth_bridge.exe -Force
+
     - name: Install Dependencies
       run: npm install
 

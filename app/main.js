@@ -4,7 +4,8 @@
  * Same UI but Advanced Ad Blocking
  */
 
-const { app, BrowserWindow, session, ipcMain, net, shell } = require('electron');
+const { app, BrowserWindow, session, ipcMain, net, shell, dialog, Menu } = require('electron');
+const { exec } = require('child_process');
 
 
 const path = require('path');
@@ -553,6 +554,91 @@ async function createAdvancedWindow() {
         }
     }
 
+    // ============================================
+    // 4. EXTERNAL AUTH BRIDGE (PYTHON)
+    // ============================================
+    ipcMain.handle('run-auth-bridge', async () => {
+        return await runAuthBridge();
+    });
+
+    async function runAuthBridge() {
+        return new Promise((resolve, reject) => {
+            let exePath;
+            if (app.isPackaged) {
+                exePath = path.join(process.resourcesPath, 'bin', 'auth_bridge.exe');
+            } else {
+                exePath = path.join(__dirname, 'bin', 'auth_bridge.exe');
+            }
+
+            const pyScript = path.join(__dirname, 'auth_bridge.py');
+            let command;
+
+            if (fs.existsSync(exePath)) {
+                console.log(`🚀 Running Bundled Bridge: ${exePath}`);
+                command = `"${exePath}"`; // Run exe directly
+            } else {
+                console.log(`🐍 Running Python Script (Dev Mode): ${pyScript}`);
+                command = `python "${pyScript}"`; // Run python script
+            }
+
+            exec(command, async (error, stdout, stderr) => {
+                if (error) {
+                    console.error(`exec error: ${error}`);
+                    // Differentiate error message based on mode
+                    const msg = fs.existsSync(exePath)
+                        ? `Bridge corrupted.\n${error.message}`
+                        : `Could not run auth script.\nEnsure Python is installed or run 'build_bridge.bat'.\n${error.message}`;
+
+                    dialog.showErrorBox('Bridge Error', msg);
+                    resolve({ success: false, error: error.message });
+                    return;
+                }
+
+                try {
+                    const result = JSON.parse(stdout);
+
+                    if (result.error) {
+                        dialog.showErrorBox('Auth Bridge Failed', `${result.message}\nError Code: ${result.error}`);
+                        resolve({ success: false, error: result.message });
+                        return;
+                    }
+
+                    if (Array.isArray(result) && result.length > 0) {
+                        console.log(`🍪 Bridge found ${result.length} cookies. Injecting...`);
+
+                        // Inject into Default Session
+                        for (const cookie of result) {
+                            try {
+                                await session.defaultSession.cookies.set(cookie);
+                            } catch (err) {
+                                // console.warn('Cookie set error:', err.message);
+                            }
+                        }
+
+                        console.log('✅ Cookies Injected Successfully');
+                        dialog.showMessageBox(mainWindow, {
+                            type: 'info',
+                            title: 'Login Successful',
+                            message: `Successfully imported ${result.length} session cookies from Chrome/Edge.\n\nThe app will now reload.`
+                        }).then(() => {
+                            mainWindow.reload();
+                        });
+
+                        resolve({ success: true, count: result.length });
+                    } else {
+                        dialog.showErrorBox('No Cookies Found', 'Could not find any YouTube/Google login cookies in your system browser (Chrome/Edge).\n\nPlease make sure you are logged into YouTube on Chrome or Edge first.');
+                        resolve({ success: false, error: "No cookies found" });
+                    }
+
+                } catch (e) {
+                    console.error('JSON Parse Error:', e);
+                    console.log('Raw Stdout:', stdout);
+                    resolve({ success: false, error: "Invalid Output" });
+                }
+            });
+        });
+    }
+
     // ... inside createWindow ...
 
     // Handle Window Open Requests (Popups & External Links)
@@ -636,6 +722,43 @@ async function createAdvancedWindow() {
             shell.openExternal(url);
         }
     });
+
+    // Create Custom Menu
+    const menuTemplate = [
+        {
+            label: 'Clivon',
+            submenu: [
+                { role: 'quit' }
+            ]
+        },
+        {
+            label: 'Authentication',
+            submenu: [
+                {
+                    label: 'Sign In via Google (Native)',
+                    click: () => openAuthWindow('https://accounts.google.com/ServiceLogin?service=youtube')
+                },
+                { type: 'separator' },
+                {
+                    label: 'Import Session from Chrome/Edge (Bypass)',
+                    click: async () => {
+                        await runAuthBridge();
+                    }
+                }
+            ]
+        },
+        {
+            label: 'View',
+            submenu: [
+                { role: 'reload' },
+                { role: 'forceReload' },
+                { role: 'toggleDevTools' }
+            ]
+        }
+    ];
+
+    const menu = Menu.buildFromTemplate(menuTemplate);
+    Menu.setApplicationMenu(menu);
 
     // Load YouTube
     const youtubeUrl = 'https://www.youtube.com';
