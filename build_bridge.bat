@@ -6,7 +6,8 @@ cd /d "%~dp0"
 
 echo.
 echo 📦 Installing PyInstaller...
-pip install pyinstaller pycryptodome
+pip install pyinstaller pycryptodome playwright
+playwright install chromium
 if %errorlevel% neq 0 (
     echo ❌ Failed to install dependencies.
     pause

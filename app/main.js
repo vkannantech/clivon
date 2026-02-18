@@ -5,17 +5,20 @@
  */
 
 const { app, BrowserWindow, session, ipcMain, net, shell, dialog, Menu } = require('electron');
-const { exec } = require('child_process');
+// const { exec } = require('child_process');
 
 
 const path = require('path');
 const fs = require('fs');
 
-// [REMOVED] Network Boost Engine
-// Restored to Vanilla State
-
-// [FIX] Disable QUIC to prevent YouTube playback errors and connection reset
+// [REVERTED] NETWORK BOOST ENGINE - MAXIMUM STABILITY
+// QUIC Disabled to prevent connection reset
 app.commandLine.appendSwitch('disable-quic');
+// KEEP SAFE BOOSTERS
+app.commandLine.appendSwitch('ignore-gpu-blocklist');
+// 1GB Disk Cache for buffering large videos
+app.commandLine.appendSwitch('disk-cache-size', '1073741824');
+app.commandLine.appendSwitch('enable-features', 'VaapiVideoDecoder');
 // [FIX] Hardened Anti-Detection for Google Sign-In
 app.commandLine.appendSwitch('disable-blink-features', 'AutomationControlled');
 app.commandLine.appendSwitch('disable-features', 'CrossSiteDocumentBlockingIfIsolating,SameSiteByDefaultCookies,IsolateOrigins,site-per-process'); // CRITICAL FOR AUTH
@@ -428,7 +431,8 @@ async function createAdvancedWindow() {
         width: 1920,
         height: 1080,
         backgroundColor: '#0F0F0F',
-        frame: true,
+        frame: false, // [MODIFIED] Remove Top Bar
+        fullscreen: true, // [MODIFIED] Remove Taskbar (Full Screen)
         autoHideMenuBar: true,
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
@@ -458,235 +462,129 @@ async function createAdvancedWindow() {
         }
     });
 
+    // [REMOVED] Legacy Auth Window (Replaced by Native Auth Window below)
+
     // ============================================
-    // 3. SECURE AUTH WINDOW (CLEAN ENVIRONMENT)
+    // 4. NATIVE AUTH WINDOW (NO PYTHON)
     // ============================================
+
     let authWindow = null;
 
-    async function openAuthWindow(targetUrl) {
+    function createAuthWindow() {
         if (authWindow) {
             authWindow.focus();
             return;
         }
 
-        console.log('🔐 Opening Secure Auth Window...');
+        console.log('🔐 Opening Native Auth Window...');
 
-        // Use a separate partition to ensure NO extensions/scripts are loaded
-        const authSession = session.fromPartition('persist:auth_flow');
-
-        // [FIX] NUCLEAR WIPE: Clear all data from previous failed attempts
-        console.log('☢️ Nuking Auth Session Data...');
-        await authSession.clearStorageData();
-        await authSession.clearCache();
-        console.log('✅ Auth Session Cleaned');
-
-        // Clean User Agent for Auth
-        const authUA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36';
-        authSession.setUserAgent(authUA);
-
-        // [FIX] ULTIMATE STEALTH: Spoof Client Hints to remove "Electron" brand
-        authSession.webRequest.onBeforeSendHeaders((details, callback) => {
-            const headers = details.requestHeaders;
-
-            // Force Chrome Branding (Matches User Agent)
-            headers['sec-ch-ua'] = '"Chromium";v="129", "Google Chrome";v="129", "Not-A.Brand";v="99"';
-            headers['sec-ch-ua-mobile'] = '?0';
-            headers['sec-ch-ua-platform'] = '"Windows"';
-
-            callback({ requestHeaders: headers });
-        });
+        // Use a clean, standard User-Agent for this window only
+        const cleanUA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
 
         authWindow = new BrowserWindow({
             width: 500,
-            height: 700,
-            title: 'Sign In - Secure Flow',
-            icon: path.join(__dirname, 'icon.png'),
+            height: 600,
+            title: 'Sign in to Google',
+            icon: path.join(__dirname, 'icon.png'), // [FIX] Add Branding
+            frame: false, // [FIX] Clean Look
             autoHideMenuBar: true,
+            minimizable: true,
+            maximizable: false,
+            alwaysOnTop: true,
             webPreferences: {
-                partition: 'persist:auth_flow', // ISOLATED SESSION
-                preload: path.join(__dirname, 'auth-preload.js'), // [FIX] EXPLICIT CLEAN PRELOAD
                 nodeIntegration: false,
                 contextIsolation: true,
-                sandbox: true, // MUST BE TRUE for Chromium to allow Google Login
-                disableBlinkFeatures: 'AutomationControlled', // Critical
-                webSecurity: true,
-                plugins: true // Enable plugins to look real
+                sandbox: true,
+                enableRemoteModule: false,
+                // Using default session implies sharing cookies with main window
             }
         });
 
-        // Strip automation flags from Auth Window too
-        authWindow.webContents.setUserAgent(authUA);
+        authWindow.webContents.setUserAgent(cleanUA);
 
-        // [FIX] REFERRER SPOOF: fake coming from YouTube to avoid direct-access blocks
-        authWindow.loadURL(targetUrl, {
+        // Load Google Sign-In
+        authWindow.loadURL('https://accounts.google.com/ServiceLogin?service=youtube', {
+            userAgent: cleanUA,
             httpReferrer: 'https://www.youtube.com/'
         });
 
-        // Monitor for successful login (redirect to YouTube)
-        authWindow.webContents.on('did-navigate', async (event, url) => {
-            console.log('Auth Navigated:', url);
+        // Monitor Navigation for Login Success
+        authWindow.webContents.on('did-navigate', (event, url) => {
+            console.log(`Auth Window Navigated: ${url}`);
 
-            // If we land back on YouTube or Google Account home, we assume success
-            // [FIX] Strict Hostname Check to prevent false positives from login URL parameters
-            try {
-                const urlObj = new URL(url);
-                if (urlObj.hostname === 'www.youtube.com' ||
-                    urlObj.hostname === 'm.youtube.com' ||
-                    urlObj.hostname === 'myaccount.google.com') {
-                    console.log('✅ Login Detected! Syncing cookies...');
-                    await syncCookies(authSession, session.defaultSession);
+            // Check for YouTube redirect (Login Success)
+            if (url.includes('youtube.com') && !url.includes('accounts.google.com')) {
+                console.log('✅ Login Successful! Closing Auth Window...');
 
-                    // Optional: Close auth window after short delay
-                    setTimeout(() => {
-                        if (authWindow) {
-                            authWindow.close();
-                            authWindow = null;
-                        }
-                        // Reload main window to pick up new cookies
-                        if (mainWindow) mainWindow.reload();
-                    }, 2000);
-                }
-            } catch (e) {
-                console.error('Auth Nav Error:', e);
+                setTimeout(() => {
+                    authWindow.close();
+                    if (mainWindow) {
+                        dialog.showMessageBox(mainWindow, {
+                            type: 'info',
+                            title: 'Login Successful',
+                            message: 'You have signed in successfully. The app will now reload to apply changes.'
+                        }).then(() => {
+                            mainWindow.reload();
+                        });
+                    }
+                }, 1500);
             }
         });
 
         authWindow.on('closed', () => {
             authWindow = null;
+            console.log('🔒 Auth Window Closed');
         });
     }
 
-    async function syncCookies(sourceSession, targetSession) {
-        try {
-            const cookies = await sourceSession.cookies.get({});
-            for (const cookie of cookies) {
-                const cookieObj = {
-                    url: `http${cookie.secure ? 's' : ''}://${cookie.domain.replace(/^\./, '')}${cookie.path}`,
-                    name: cookie.name,
-                    value: cookie.value,
-                    domain: cookie.domain,
-                    path: cookie.path,
-                    secure: cookie.secure,
-                    httpOnly: cookie.httpOnly,
-                    expirationDate: cookie.expirationDate
-                };
-                try {
-                    await targetSession.cookies.set(cookieObj);
-                } catch (err) {
-                    // Ignore specific cookie errors
-                }
-            }
-            console.log(`🍪 Synced ${cookies.length} cookies to Main Session`);
-        } catch (error) {
-            console.error('Cookie Sync Failed:', error);
-        }
-    }
-
     // ============================================
-    // 4. EXTERNAL AUTH BRIDGE (PYTHON)
+    // 5. NATIVE CHILD WINDOW (IN-APP BROWSER)
     // ============================================
-    ipcMain.handle('run-auth-bridge', async () => {
-        return await runAuthBridge();
-    });
-
-    async function runAuthBridge() {
-        return new Promise((resolve, reject) => {
-            let exePath;
-            if (app.isPackaged) {
-                exePath = path.join(process.resourcesPath, 'bin', 'auth_bridge.exe');
-            } else {
-                exePath = path.join(__dirname, 'bin', 'auth_bridge.exe');
+    function createChildWindow(targetUrl) {
+        console.log('🔗 Opening In-App Browser:', targetUrl);
+        const win = new BrowserWindow({
+            width: 1200,
+            height: 800,
+            title: 'Clivon Browser',
+            icon: path.join(__dirname, 'icon.png'),
+            autoHideMenuBar: true,
+            frame: true, // [MODIFIED] Show Top Bar
+            fullscreen: false, // [MODIFIED] Show Taskbar Top Bar (Requested)
+            webPreferences: {
+                nodeIntegration: false,
+                contextIsolation: true,
+                sandbox: true,
+                // Share default session for convenience
             }
+        });
 
-            const pyScript = path.join(__dirname, 'auth_bridge.py');
-            let command;
+        // Use clean UA
+        const cleanUA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
+        win.webContents.setUserAgent(cleanUA);
 
-            if (fs.existsSync(exePath)) {
-                console.log(`🚀 Running Bundled Bridge: ${exePath}`);
-                command = `"${exePath}"`; // Run exe directly
-            } else {
-                console.log(`🐍 Running Python Script (Dev Mode): ${pyScript}`);
-                command = `python "${pyScript}"`; // Run python script
-            }
+        win.loadURL(targetUrl);
 
-            const options = {
-                maxBuffer: 1024 * 1024 * 10, // 10MB buffer
-                windowsHide: false // ensure we can see if console pops up (for debugging)
-            };
-
-            exec(command, options, async (error, stdout, stderr) => {
-                if (error) {
-                    console.error(`exec error: ${error}`);
-                    // Differentiate error message based on mode
-                    const msg = fs.existsSync(exePath)
-                        ? `Bridge corrupted.\n${error.message}`
-                        : `Could not run auth script.\nEnsure Python is installed or run 'build_bridge.bat'.\n${error.message}`;
-
-                    dialog.showErrorBox('Bridge Error', msg);
-                    resolve({ success: false, error: error.message });
-                    return;
-                }
-
-                try {
-                    const result = JSON.parse(stdout);
-
-                    if (result.error) {
-                        dialog.showErrorBox('Auth Bridge Failed', `${result.message}\nError Code: ${result.error}`);
-                        resolve({ success: false, error: result.message });
-                        return;
-                    }
-
-                    if (Array.isArray(result) && result.length > 0) {
-                        console.log(`🍪 Bridge found ${result.length} cookies. Injecting...`);
-
-                        // Inject into Default Session
-                        for (const cookie of result) {
-                            try {
-                                await session.defaultSession.cookies.set(cookie);
-                            } catch (err) {
-                                // console.warn('Cookie set error:', err.message);
-                            }
-                        }
-
-                        console.log('✅ Cookies Injected Successfully');
-                        dialog.showMessageBox(mainWindow, {
-                            type: 'info',
-                            title: 'Login Successful',
-                            message: `Successfully imported ${result.length} session cookies from Chrome/Edge.\n\nThe app will now reload.`
-                        }).then(() => {
-                            mainWindow.reload();
-                        });
-
-                        resolve({ success: true, count: result.length });
-                    } else {
-                        dialog.showErrorBox('No Cookies Found', 'Could not find any YouTube/Google login cookies in your system browser (Chrome/Edge).\n\nPlease make sure you are logged into YouTube on Chrome or Edge first.');
-                        resolve({ success: false, error: "No cookies found" });
-                    }
-
-                } catch (e) {
-                    console.error('JSON Parse Error:', e);
-                    console.log('Raw Stdout:', stdout);
-                    resolve({ success: false, error: "Invalid Output" });
-                }
-            });
+        // Handle nested links in child window
+        win.webContents.setWindowOpenHandler(({ url }) => {
+            win.loadURL(url);
+            return { action: 'deny' };
         });
     }
 
     // ... inside createWindow ...
 
     // Handle Window Open Requests (Popups & External Links)
+    // Handle Window Open Requests (Popups & External Links)
     mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-        // ALLOW: Google Sign-In - INTERCEPT WITH SYSTEM HIJACK
-        if (url.startsWith('https://accounts.google.com') ||
-            url.startsWith('https://www.google.com/accounts') ||
-            url.includes('google.com/signin')) {
 
-            runAuthBridge(); // FORCE SYSTEM HIJACK
-            return { action: 'deny' }; // We handle it manually
+        // [FIX] Google Sign-In already handled by interceptor, but if popped up:
+        if (url.includes('accounts.google.com') || url.includes('ServiceLogin')) {
+            createAuthWindow();
+            return { action: 'deny' };
         }
 
-        // DENY & OPEN EXTERNAL: Everything else (e.g. Links in description)
-        shell.openExternal(url);
+        // Everything else -> In-App Child Window
+        createChildWindow(url);
         return { action: 'deny' };
     });
 
@@ -740,20 +638,13 @@ async function createAdvancedWindow() {
 
             console.log(`🔐 Intercepting Navigation to Auth: ${url}`);
             event.preventDefault(); // STOP Main Window navigation
-            runAuthBridge();        // FORCE SYSTEM HIJACK
+            createAuthWindow();        // OPEN NATIVE AUTH WINDOW
             return;
         }
 
         // Removed accounts.google.com from allowed list to enforce interception
-        const allowedDomains = ['youtube.com', 'googlevideo.com', 'google.com', 'gstatic.com'];
-        const isAllowed = allowedDomains.some(domain => url.includes(domain));
-
-        if (!isAllowed) {
-            // Block navigation and open in external browser
-            console.log(`� Opening external: ${url}`);
-            event.preventDefault();
-            shell.openExternal(url);
-        }
+        // [MODIFIED] Allow all URLs (Requested by User)
+        console.log(`🌐 Navigating to: ${url}`);
     });
 
     // Create Custom Menu
@@ -768,16 +659,9 @@ async function createAdvancedWindow() {
             label: 'Authentication',
             submenu: [
                 {
-                    label: 'Sign In via Google (System Chrome)',
+                    label: 'Sign In via Google',
                     click: async () => {
-                        await runAuthBridge(); // FORCE SYSTEM HIJACK
-                    }
-                },
-                { type: 'separator' },
-                {
-                    label: 'Import Session from Chrome/Edge (Bypass)',
-                    click: async () => {
-                        await runAuthBridge();
+                        createAuthWindow();
                     }
                 }
             ]

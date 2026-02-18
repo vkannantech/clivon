@@ -250,6 +250,111 @@ def get_all_browser_cookies(browser_name):
             
     return all_cookies
 
+def ensure_chromium_installed():
+    """Checks for Chromium and installs if missing."""
+    import shutil
+    try:
+        from playwright.sync_api import sync_playwright
+        with sync_playwright() as p:
+            # Try to launch to check if it exists
+            # This will throw if browser is missing
+            try:
+                browser = p.chromium.launch(headless=True)
+                browser.close()
+                return True
+            except Exception:
+                sys.stderr.write("DEBUG: Portable browser missing. Installing Chromium...\n")
+                # Install chromium
+                subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], 
+                             capture_output=False) # Show output so user knows download is happening
+                return True
+    except Exception as e:
+        sys.stderr.write(f"DEBUG: Failed to install browser: {e}\n")
+        return False
+
+def launch_stealth_browser():
+    """Launches Playwright Chromium for manual login."""
+    try:
+        # Ensure browser is installed first
+        ensure_chromium_installed()
+        
+        from playwright.sync_api import sync_playwright
+        import time
+        
+        sys.stderr.write("LAUNCHING_STEALTH_BROWSER\n")
+        
+        with sync_playwright() as p:
+            # Launch Chromium (bundled with Playwright)
+            browser = p.chromium.launch(
+                headless=False,
+                args=[
+                    '--start-maximized',
+                    '--disable-blink-features=AutomationControlled',
+                    '--no-sandbox'
+                ]
+            )
+            
+            context = browser.new_context(
+                viewport=None,
+                user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36'
+            )
+            
+            page = context.new_page()
+            page.goto("https://accounts.google.com/ServiceLogin?service=youtube")
+            
+            sys.stderr.write("WAITING_FOR_LOGIN\n")
+            
+            # Wait for auth cookies (5 minutes max)
+            critical_cookies = {'HSID', 'SID', 'SSID', '__Secure-1PSID', '__Secure-3PSID'}
+            found_cookies = None
+            
+            for _ in range(300):
+                cookies = context.cookies()
+                cookie_names = {c['name'] for c in cookies}
+                
+                if critical_cookies & cookie_names:
+                    found_cookies = cookies
+                    sys.stderr.write("SUCCESS: Auth cookies detected!\n")
+                    break
+                    
+                time.sleep(1)
+            
+            browser.close()
+            
+            if found_cookies:
+                # Convert to Electron format
+                final_cookies = []
+                for c in found_cookies:
+                    # Map SameSite for Electron
+                    # Playwright: "Strict", "Lax", "None"
+                    # Electron: "strict", "lax", "no_restriction"
+                    same_site = c.get('sameSite', 'Lax')
+                    if same_site == 'None':
+                        electron_same_site = 'no_restriction'
+                    elif same_site == 'Strict':
+                        electron_same_site = 'strict'
+                    else:
+                        electron_same_site = 'lax'
+
+                    final_cookies.append({
+                        "url": f"https://{c['domain'].lstrip('.')}{c['path']}",
+                        "domain": c['domain'],
+                        "name": c['name'],
+                        "value": c['value'],
+                        "path": c['path'],
+                        "secure": c.get('secure', True),
+                        "httpOnly": c.get('httpOnly', True),
+                        "expirationDate": c.get('expires', 0),
+                        "sameSite": electron_same_site
+                    })
+                return final_cookies
+        
+        return None
+
+    except Exception as e:
+        sys.stderr.write(f"STEALTH_ERROR: {e}\n")
+        return None
+
 if __name__ == "__main__":
     try:
         # Check dependencies first
@@ -259,15 +364,23 @@ if __name__ == "__main__":
             print(json.dumps({"error": "MISSING_DEPENDENCY", "message": "Please install pycryptodome: pip install pycryptodome"}))
             sys.exit(1)
 
-        # Extract from System Browser (Chrome/Edge)
-        all_cookies = get_all_browser_cookies("Chrome")
-        if not all_cookies:
-            all_cookies = get_all_browser_cookies("Edge")
+        # 1. Try System Extraction First (Silent)
+        # Note: Disabled to force Portable Browser for reliability
+        # all_cookies = get_all_browser_cookies("Chrome")
+        # if not all_cookies:
+        #    all_cookies = get_all_browser_cookies("Edge")
             
-        if all_cookies:
-            print(json.dumps(all_cookies))
+        # if all_cookies:
+        #     print(json.dumps(all_cookies))
+        #     sys.exit(0)
+
+        # 2. Fallback: Standalone Stealth Browser (Portable Chromium)
+        stealth_cookies = launch_stealth_browser()
+        
+        if stealth_cookies:
+            print(json.dumps(stealth_cookies))
         else:
-            print(json.dumps({"error": "NO_COOKIES", "message": "No YouTube/Google cookies found in Chrome or Edge. Please log in to YouTube in your browser first."}))
+            print(json.dumps({"error": "NO_COOKIES", "message": "Login timeout or closed."}))
 
     except Exception as e:
         print(json.dumps({"error": "CRASH", "message": str(e)}))
