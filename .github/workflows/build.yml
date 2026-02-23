@@ -98,12 +98,26 @@ jobs:
     - name: Display structure of downloaded files
       run: ls -R artifacts
 
-    - name: Upload All to SourceForge
-      uses: appleboy/scp-action@master
-      with:
-        host: frs.sourceforge.net
-        username: kannantech
-        key: ${{ secrets.SOURCEFORGE_SSH_PRIVATE_KEY }}
-        source: "artifacts/Clivon-Windows-Build/*.exe,artifacts/Clivon-Linux-Build/*.AppImage,artifacts/Clivon-Linux-Build/*.deb"
-        target: "/home/frs/project/clivon/YouTubev${{ steps.pkg.outputs.version }}"
-        strip_components: 2
+    - name: Upload All to SourceForge via rsync
+      env:
+        SF_KEY: ${{ secrets.SOURCEFORGE_SSH_PRIVATE_KEY }}
+        VERSION: ${{ steps.pkg.outputs.version }}
+      run: |
+        # Write the SSH private key to a temp file
+        mkdir -p ~/.ssh
+        echo "$SF_KEY" > ~/.ssh/sf_key
+        chmod 600 ~/.ssh/sf_key
+        # Trust SourceForge host key
+        ssh-keyscan frs.sourceforge.net >> ~/.ssh/known_hosts 2>/dev/null
+        # Create the target folder on SourceForge FRS
+        ssh -i ~/.ssh/sf_key -o StrictHostKeyChecking=no \
+          kannantech@frs.sourceforge.net \
+          "mkdir -p /home/frs/project/clivon/YouTubev${VERSION}"
+        # Upload Windows EXE
+        rsync -avz -e "ssh -i ~/.ssh/sf_key -o StrictHostKeyChecking=no" \
+          artifacts/Clivon-Windows-Build/ \
+          kannantech@frs.sourceforge.net:/home/frs/project/clivon/YouTubev${VERSION}/
+        # Upload Linux build
+        rsync -avz -e "ssh -i ~/.ssh/sf_key -o StrictHostKeyChecking=no" \
+          artifacts/Clivon-Linux-Build/ \
+          kannantech@frs.sourceforge.net:/home/frs/project/clivon/YouTubev${VERSION}/
