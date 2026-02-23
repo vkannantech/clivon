@@ -53,7 +53,7 @@ jobs:
       uses: appleboy/scp-action@master
       with:
         host: frs.sourceforge.net
-        username: vkannantech
+        username: kannantech
         key: ${{ secrets.SOURCEFORGE_SSH_PRIVATE_KEY }}
         source: "app/dist/*.exe"
         target: "/home/frs/project/clivon/YouTubev${{ github.ref_name || '1.0.2' }}"
