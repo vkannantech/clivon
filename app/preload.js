@@ -73,10 +73,10 @@ const FastAdSkipper = {
         this.isActive = true;
         console.log(`🚀 Clivon v${this.version} - VANILLA MODE ACTIVE`);
 
-        // 1. Surgical Ad-Shield (Core) - DISABLED
-        // this.injectAggressiveCSS();
-        // this.startHighSpeedSkipping();
-        // this.startMutationShield();
+        // 1. Surgical Ad-Shield (Core) - RE-ENABLED
+        this.injectAggressiveCSS();
+        // this.startHighSpeedSkipping(); // Leave disabled to let uBlock handle video ads
+        this.startMutationShield();
         // this.startPlayGuard();
 
         // Only keep Premium Status Detection (Passive)
@@ -102,7 +102,14 @@ const FastAdSkipper = {
             #player-ads,
             ytd-ad-slot-renderer,
             ytd-promoted-sparkles-web-renderer,
-            ytd-player-legacy-desktop-watch-ads-renderer {
+            ytd-player-legacy-desktop-watch-ads-renderer,
+            #masthead-ad,
+            .ytd-in-feed-ad-layout-renderer,
+            ytd-rich-item-renderer:has(.badge-style-type-ad),
+            ytd-rich-item-renderer:has(span[aria-label="Sponsored"]),
+            ytd-rich-item-renderer:has(ytd-ad-slot-renderer),
+            ytd-item-section-renderer:has(ytd-ad-slot-renderer),
+            ytd-promoted-video-renderer {
                 display: none !important;
                 visibility: hidden !important;
                 width: 0 !important;
