@@ -49,16 +49,6 @@ jobs:
         name: Clivon-Windows-Build
         path: app/dist/*.exe
 
-    - name: Upload to SourceForge
-      uses: appleboy/scp-action@master
-      with:
-        host: frs.sourceforge.net
-        username: kannantech
-        key: ${{ secrets.SOURCEFORGE_SSH_PRIVATE_KEY }}
-        source: "app/dist/*.exe"
-        target: "/home/frs/project/clivon/YouTubev${{ github.ref_name || '1.0.2' }}"
-        strip_components: 2
-
   build-linux:
     runs-on: ubuntu-latest
     defaults:
@@ -82,10 +72,32 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     
-    - name: Upload Linux Artifacts
+    - name: Upload Linux Artifacts to GitHub
       uses: actions/upload-artifact@v4
       with:
         name: Clivon-Linux-Build
         path: |
           app/dist/*.AppImage
           app/dist/*.deb
+
+  deploy:
+    needs: [build, build-linux]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+
+    - name: Display structure of downloaded files
+      run: ls -R artifacts
+
+    - name: Upload All to SourceForge
+      uses: appleboy/scp-action@master
+      with:
+        host: frs.sourceforge.net
+        username: vkannantech
+        key: ${{ secrets.SOURCEFORGE_SSH_PRIVATE_KEY }}
+        source: "artifacts/Clivon-Windows-Build/*.exe,artifacts/Clivon-Linux-Build/*.AppImage,artifacts/Clivon-Linux-Build/*.deb"
+        target: "/home/frs/project/clivon/YouTubev${{ github.ref_name || '1.0.2' }}"
+        strip_components: 2
