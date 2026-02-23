@@ -84,6 +84,12 @@ jobs:
     needs: [build, build-linux]
     runs-on: ubuntu-latest
     steps:
+    - uses: actions/checkout@v4
+
+    - name: Get version from package.json
+      id: pkg
+      run: echo "version=$(node -p "require('./app/package.json').version")" >> $GITHUB_OUTPUT
+
     - name: Download all artifacts
       uses: actions/download-artifact@v4
       with:
@@ -99,5 +105,5 @@ jobs:
         username: kannantech
         key: ${{ secrets.SOURCEFORGE_SSH_PRIVATE_KEY }}
         source: "artifacts/Clivon-Windows-Build/*.exe,artifacts/Clivon-Linux-Build/*.AppImage,artifacts/Clivon-Linux-Build/*.deb"
-        target: "/home/frs/project/clivon/YouTubev${{ github.ref_name || '1.0.2' }}"
+        target: "/home/frs/project/clivon/YouTubev${{ steps.pkg.outputs.version }}"
         strip_components: 2
