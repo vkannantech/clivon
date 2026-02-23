@@ -43,11 +43,21 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     
-    - name: Upload Artifacts
+    - name: Upload Artifacts to GitHub
       uses: actions/upload-artifact@v4
       with:
         name: Clivon-Windows-Build
         path: app/dist/*.exe
+
+    - name: Upload to SourceForge
+      uses: appleboy/scp-action@master
+      with:
+        host: frs.sourceforge.net
+        username: vkannantech
+        key: ${{ secrets.SOURCEFORGE_SSH_PRIVATE_KEY }}
+        source: "app/dist/*.exe"
+        target: "/home/frs/project/clivon/YouTubev${{ github.ref_name || '1.0.2' }}"
+        strip_components: 2
 
   build-linux:
     runs-on: ubuntu-latest
