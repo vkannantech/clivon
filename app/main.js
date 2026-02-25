@@ -612,8 +612,8 @@ async function createAdvancedWindow() {
     // ============================================
     // 6. NATIVE SECURE AUTH WINDOW (GOOGLE OVERRIDE)
     // ============================================
-    function createAuthWindow() {
-        console.log('🔗 Opening Google Auth Window...');
+    function createAuthWindow(targetUrl = null) {
+        console.log('🔗 Opening Google Auth Window...', targetUrl || 'Default Login');
         const authWin = new BrowserWindow({
             width: 800,
             height: 900,
@@ -643,14 +643,15 @@ async function createAdvancedWindow() {
             });
         `);
 
-        // Navigate to YouTube's specific login endpoint
-        const loginUrl = 'https://accounts.google.com/ServiceLogin?service=youtube&uilel=3&passive=true&continue=https%3A%2F%2Fwww.youtube.com%2Fsignin%3Faction_handle_signin%3Dtrue%26app%3Ddesktop%26hl%3Den-GB%26next%3Dhttps%253A%252F%252Fwww.youtube.com%252F&hl=en-GB&ec=65620';
+        // Navigate to YouTube's specific login endpoint or the requested AddSession URL
+        const loginUrl = targetUrl || 'https://accounts.google.com/ServiceLogin?service=youtube&uilel=3&passive=true&continue=https%3A%2F%2Fwww.youtube.com%2Fsignin%3Faction_handle_signin%3Dtrue%26app%3Ddesktop%26hl%3Den-GB%26next%3Dhttps%253A%252F%252Fwww.youtube.com%252F&hl=en-GB&ec=65620';
 
         authWin.loadURL(loginUrl);
 
         // Detect successful login and close window
         authWin.webContents.on('did-navigate', (event, url) => {
-            if (url.includes('youtube.com') && !url.includes('ServiceLogin')) {
+            // [FIX] Wait until token hand-off at /signin finishes and redirects to the main feed
+            if (url.includes('youtube.com') && !url.includes('ServiceLogin') && !url.includes('signin')) {
                 console.log('✅ Google Auth Success! Closing auth window and reloading main...');
                 authWin.close();
                 if (mainWindow) mainWindow.reload();
@@ -666,7 +667,7 @@ async function createAdvancedWindow() {
         // [FIX] Intercept Google Auth into Secure Native Window
         if (url.includes('accounts.google.com') || url.includes('ServiceLogin')) {
             console.log(`🌐 Launching Secure Auth Window: ${url}`);
-            createAuthWindow();
+            createAuthWindow(url);
             return { action: 'deny' };
         }
 
@@ -730,7 +731,7 @@ async function createAdvancedWindow() {
 
             console.log("🔐 Intercepting Navigation to Auth (Routing to Secure Native Window): " + url);
             event.preventDefault(); // STOP Main Window navigation
-            createAuthWindow();     // OPEN NATIVE AUTH WINDOW
+            createAuthWindow(url);  // [FIX] Pass the specific Google Auth URL to the popup!
             return;
         }
 

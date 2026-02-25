@@ -109,7 +109,9 @@ const FastAdSkipper = {
             ytd-rich-item-renderer:has(span[aria-label="Sponsored"]),
             ytd-rich-item-renderer:has(ytd-ad-slot-renderer),
             ytd-item-section-renderer:has(ytd-ad-slot-renderer),
-            ytd-promoted-video-renderer {
+            ytd-promoted-video-renderer,
+            ytd-reel-video-renderer[is-ad],
+            ytd-reel-video-renderer:has(ytd-ad-slot-renderer) .player-wrapper {
                 display: none !important;
                 visibility: hidden !important;
                 width: 0 !important;
@@ -137,8 +139,21 @@ const FastAdSkipper = {
         if (this.observer) this.observer.disconnect();
         if (!document.body) return; // Final guard
 
-        this.observer = new MutationObserver(() => this.skipAdImmediately());
-        this.observer.observe(document.body, {
+        // [PERFORMANCE] Throttle DOM scans to max 1.5 times per second (150ms delay)
+        let observerTimer = null;
+
+        this.observer = new MutationObserver(() => {
+            if (observerTimer) return; // Skip if already waiting
+            observerTimer = setTimeout(() => {
+                this.skipAdImmediately();
+                observerTimer = null;
+            }, 150);
+        });
+
+        // [PERFORMANCE] Target specific Youtube containers rather than the entire body
+        const targetElement = document.querySelector('ytd-app') || document.querySelector('#page-manager') || document.body;
+
+        this.observer.observe(targetElement, {
             childList: true,
             subtree: true,
             attributes: true,
@@ -198,8 +213,19 @@ const FastAdSkipper = {
 
             // 3. SHORTS AD DESTROYER
             const activeShort = document.querySelector('ytd-reel-video-renderer[is-active]');
-            if (activeShort && activeShort.querySelector('.ytd-ad-slot-renderer, #player-ads')) {
-                if (video) video.currentTime = video.duration - 0.1;
+            if (activeShort && (activeShort.querySelector('.ytd-ad-slot-renderer, #player-ads, ytd-ad-slot-renderer, [id^="ad-"]') || activeShort.hasAttribute('is-ad'))) {
+                if (video) {
+                    video.muted = true;
+                    video.playbackRate = 16;
+                    video.currentTime = video.duration || 999;
+                }
+
+                // Force scroll to next short
+                const nextBtn = document.querySelector('#navigation-button-down button, button[aria-label="Next video"]');
+                if (nextBtn) {
+                    nextBtn.click();
+                    console.log("⚡ Auto-scrolled past Shorts Ad");
+                }
                 skipped = true;
             }
 
