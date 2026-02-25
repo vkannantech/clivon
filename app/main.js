@@ -650,12 +650,17 @@ async function createAdvancedWindow() {
 
         // Detect successful login and close window
         authWin.webContents.on('did-navigate', (event, url) => {
-            // [FIX] Wait until token hand-off at /signin finishes and redirects to the main feed
-            if (url.includes('youtube.com') && !url.includes('ServiceLogin') && !url.includes('signin')) {
-                console.log('✅ Google Auth Success! Closing auth window and reloading main...');
-                authWin.close();
-                if (mainWindow) mainWindow.reload();
-            }
+            try {
+                const parsedUrl = new URL(url);
+
+                // [FIX] Wait until token hand-off at /signin finishes and redirects to the main feed
+                // MUST check parsedUrl.hostname to avoid passing when "youtube.com" is just a redirect parameter in the Google Auth URL
+                if (parsedUrl.hostname.includes('youtube.com') && !parsedUrl.pathname.includes('/signin')) {
+                    console.log('✅ Google Auth Success! Closing auth window and reloading main...');
+                    authWin.close();
+                    if (mainWindow) mainWindow.reload();
+                }
+            } catch (e) { }
         });
     }
 
