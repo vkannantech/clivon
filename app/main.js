@@ -282,7 +282,9 @@ async function loadOneExtension(dir) {
             }
         }
 
-        const ext = await session.defaultSession.loadExtension(dir, { allowFileAccess: true });
+        // [FIX] Load extensions into the specific YouTube partition, not the default session
+        const ses = session.fromPartition('persist:youtube');
+        const ext = await ses.loadExtension(dir, { allowFileAccess: true });
         if (ext) {
             console.log(`✅[User Ext] Loaded: ${ext.name} (v${ext.version})`);
         }
@@ -520,7 +522,8 @@ function setupResponseFilteringLayer(ses) {
 async function createAdvancedWindow() {
     console.log('🚀 Creating Advanced YouTube Window...');
 
-    const ses = session.defaultSession;
+    // [FIX] Use the dedicated strict partition for all YouTube traffic and auth
+    const ses = session.fromPartition('persist:youtube');
 
     // [FIX] Google Sign-In "Secure Browser" Error
     // Use a clean, standard Chrome User Agent. Do NOT append Electron/App names.
@@ -589,7 +592,7 @@ async function createAdvancedWindow() {
                 nodeIntegration: false,
                 contextIsolation: true,
                 sandbox: true,
-                // Share default session for convenience
+                partition: 'persist:youtube', // [FIX] Child windows MUST share the precise login session
             }
         });
 
